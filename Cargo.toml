@@ -10,9 +10,11 @@ name = "cadenza-crawler"
 # async runtime
 tokio = { version = "1", features = ["full"] }
 
-# tor connection
-arti = "1"
-arti-client = "0.9"
+# headless browser
+headless_chrome = "1"
+
+# reading xlsx
+calamine = { version = "0.21", features = ["dates"] }
 
 # data serialization
 serde = { version = "1", features = ["derive"] }
@@ -21,3 +23,38 @@ serde_json = "1"
 
 # utility
 const_format = "0.2"
+
+# error handling
+anyhow = "1.0.72"
+
+# tor connection
+[dependencies.arti]
+version = "1"
+default-features = false
+features = [
+    "tokio",
+    "compression",
+    "rustls",
+    "experimental-api",
+    "static-sqlite"
+]
+
+[dependencies.arti-client]
+version = "0.9"
+default-features = false
+features = [
+    "tokio",
+    "compression",
+    "rustls",
+    "experimental",
+    "experimental-api",
+    "static-sqlite"
+]
+
+[dependencies.tor-rtcompat]
+version = "0.9"
+default-features = false
+features = [
+    "tokio",
+    "rustls"
+]
