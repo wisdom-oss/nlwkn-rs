@@ -1,0 +1,23 @@
+[package]
+name = "nlwkn-rs"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "cadenza-crawler"
+
+[dependencies]
+# async runtime
+tokio = { version = "1", features = ["full"] }
+
+# tor connection
+arti = "1"
+arti-client = "0.9"
+
+# data serialization
+serde = { version = "1", features = ["derive"] }
+serde_with = "3"
+serde_json = "1"
+
+# utility
+const_format = "0.2"
