@@ -19,7 +19,7 @@ impl TimeDimension {
     /// Rough conversion to seconds.
     ///
     /// Imprecise for dimensions larger than weeks.
-    pub fn as_seconds(&self) -> u64 {
+    pub fn as_secs(&self) -> u64 {
         use TimeDimension::*;
 
         match self {
@@ -113,7 +113,7 @@ impl<'de> Deserialize<'de> for TimeDimension {
 
 impl PartialOrd for TimeDimension {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.as_seconds().partial_cmp(&other.as_seconds())
+        self.as_secs().partial_cmp(&other.as_secs())
     }
 }
 
