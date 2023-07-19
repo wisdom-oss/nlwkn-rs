@@ -1,11 +1,16 @@
-use std::path::Path;
-use serde::{Deserialize, Deserializer};
 use anyhow::Result;
 use calamine::{RangeDeserializerBuilder, Reader, Xlsx};
+use serde::{Deserialize, Deserializer};
+use std::cmp::Ordering;
+use std::path::Path;
+
+#[derive(Debug)]
+pub struct CadenzaTable(Vec<CadenzaTableRow>);
 
 #[derive(Debug, Deserialize, PartialEq)]
+#[cfg_attr(test, derive(Default))]
 #[serde(deny_unknown_fields)]
-pub struct TableRow {
+pub struct CadenzaTableRow {
     #[serde(rename = "Wasserrecht Nr.")]
     pub no: u64,
 
@@ -83,31 +88,65 @@ pub struct TableRow {
     pub utm_northing: i64,
 }
 
-pub fn from_path(path: &Path) -> Result<Vec<TableRow>> {
-    let mut workbook: Xlsx<_> = calamine::open_workbook(path)?;
-    let worksheets = workbook.worksheets();
-    let (_, range) = worksheets.get(0).ok_or(anyhow::Error::msg("workbook empty"))?;
-    let iter = RangeDeserializerBuilder::new().has_headers(true).from_range(&range)?;
-    let rows: Result<Vec<TableRow>, _> = iter.collect();
-    Ok(rows?)
+impl CadenzaTable {
+    pub fn from_path(path: &Path) -> Result<CadenzaTable> {
+        let mut workbook: Xlsx<_> = calamine::open_workbook(path)?;
+        let worksheets = workbook.worksheets();
+        let (_, range) = worksheets
+            .get(0)
+            .ok_or(anyhow::Error::msg("workbook empty"))?;
+        let iter = RangeDeserializerBuilder::new()
+            .has_headers(true)
+            .from_range(&range)?;
+        let rows: Result<Vec<CadenzaTableRow>, _> = iter.collect();
+        Ok(CadenzaTable(rows?))
+    }
+
+    pub fn rows(&self) -> &Vec<CadenzaTableRow> {
+        &self.0
+    }
+
+    pub fn sort_by<F>(&mut self, compare: F)
+    where
+        F: FnMut(&CadenzaTableRow, &CadenzaTableRow) -> Ordering,
+    {
+        let slice = self.0.as_mut_slice();
+        slice.sort_by(compare);
+    }
+    
+    pub fn dedup_by<F>(&mut self, same_bucket: F) where F: FnMut(&mut CadenzaTableRow, &mut CadenzaTableRow) -> bool {
+        self.0.dedup_by(same_bucket);
+    }
 }
 
-fn deserialize_date<'de, D>(deserializer: D) -> Result<Option<String>, D::Error> where D: Deserializer<'de> {
+fn deserialize_date<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
     let float: calamine::DataType = calamine::DataType::deserialize(deserializer)?;
-    Ok(Some(float.as_date().ok_or(serde::de::Error::custom("cannot convert to date"))?.to_string()))
+    Ok(Some(
+        float
+            .as_date()
+            .ok_or(serde::de::Error::custom("cannot convert to date"))?
+            .to_string(),
+    ))
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::xlsx::{CadenzaTable, CadenzaTableRow};
     use std::path::Path;
-    use crate::xlsx::TableRow;
 
+    const XLSX_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/test/cadenza.xlsx");
+
+    #[allow(deprecated)]
     #[test]
     fn parsing_works() {
-        let xlsx_path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/cadenza.xlsx"));
-        let rows = super::from_path(&xlsx_path).unwrap();
+        let xlsx_path = Path::new(XLSX_PATH);
+        let table = CadenzaTable::from_path(&xlsx_path).unwrap();
+        let rows = table.rows();
 
-        let first_row = TableRow {
+        let first_row = CadenzaTableRow {
             no: 1101,
             bailee: "Körtke".to_string().into(),
             valid_to: "2009-12-31".to_string().into(),
@@ -123,8 +162,12 @@ mod tests {
             subject: None,
             address: "1/34556".to_string().into(),
             usage_location_no: 101,
-            usage_location: "OW-entn.f.Fischt.b.NiedrigwasKörtkeBokel".to_string().into(),
-            legal_department: "Entnahme von Wasser oder Entnahmen fester Stoffe aus oberirdischen Gewässern".to_string(),
+            usage_location: "OW-entn.f.Fischt.b.NiedrigwasKörtkeBokel"
+                .to_string()
+                .into(),
+            legal_department:
+                "Entnahme von Wasser oder Entnahmen fester Stoffe aus oberirdischen Gewässern"
+                    .to_string(),
             legal_scope: "A70 Speisung von Teichen".to_string().into(),
             county: "Gifhorn".to_string().into(),
             rivershed: "Elbe/Labe".to_string().into(),
@@ -136,5 +179,33 @@ mod tests {
         };
 
         assert_eq!(rows[0], first_row);
+    }
+
+    #[test]
+    fn sort_works() {
+        let a = CadenzaTableRow {
+            no: 3,
+            ..Default::default()
+        };
+
+        let b = CadenzaTableRow {
+            no: 2,
+            ..Default::default()
+        };
+
+        let c = CadenzaTableRow {
+            no: 1,
+            ..Default::default()
+        };
+
+        let mut table = CadenzaTable(vec![a, b, c]);
+        for (i, r) in [3, 2, 1].iter().zip(table.rows().iter()) {
+            assert_eq!(*i, r.no);
+        }
+
+        table.sort_by(|a, b| a.no.cmp(&b.no));
+        for (i, r) in [1, 2, 3].iter().zip(table.rows().iter()) {
+            assert_eq!(*i, r.no);
+        }
     }
 }

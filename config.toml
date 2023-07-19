@@ -1,0 +1,5 @@
+[cadenza]
+url = "http://www.wasserdaten.niedersachsen.de/cadenza/"
+timeout = 300000 # 5 minutes
+
+[tor]

@@ -1,8 +1,16 @@
 use arti_client::TorClient;
+use lazy_static::lazy_static;
+use std::ops::Deref;
 use tor_rtcompat::PreferredRuntime;
 
+lazy_static! {
+    pub static ref SOCKS_PORT: u16 = portpicker::pick_unused_port().expect("no ports free");
+}
+
 pub async fn start_socks_proxy() -> anyhow::Result<()> {
-    let tor_runtime = PreferredRuntime::current().expect("in tokio");
-    let tor_client = TorClient::with_runtime(tor_runtime.clone()).create_bootstrapped().await.expect("tor client is necessary");
-    arti::socks::run_socks_proxy(tor_runtime, tor_client, 9150).await
+    let tor_runtime = PreferredRuntime::current()?;
+    let tor_client = TorClient::with_runtime(tor_runtime.clone())
+        .create_bootstrapped()
+        .await?;
+    arti::socks::run_socks_proxy(tor_runtime, tor_client, *SOCKS_PORT).await
 }

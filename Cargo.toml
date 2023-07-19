@@ -11,21 +11,30 @@ name = "cadenza-crawler"
 tokio = { version = "1", features = ["full"] }
 
 # headless browser
-headless_chrome = "1"
+headless_chrome = { version = "1", features = ["fetch"] }
 
 # reading xlsx
 calamine = { version = "0.21", features = ["dates"] }
+
+# fetch data
+reqwest = { version = "0.11", features = ["rustls-tls", "blocking", "socks"] }
 
 # data serialization
 serde = { version = "1", features = ["derive"] }
 serde_with = "3"
 serde_json = "1"
 
+# cli
+clap = { version = "4", features = ["derive"] }
+
 # utility
 const_format = "0.2"
+static-toml = "1"
+portpicker = "0.1"
+lazy_static = "1"
 
 # error handling
-anyhow = "1.0.72"
+anyhow = "1"
 
 # tor connection
 [dependencies.arti]

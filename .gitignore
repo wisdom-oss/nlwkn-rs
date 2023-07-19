@@ -3,3 +3,6 @@
 
 # cargo
 /target
+
+# tmp files
+test/~$cadenza.xlsx
