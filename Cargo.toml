@@ -17,7 +17,7 @@ headless_chrome = { version = "1", features = ["fetch"] }
 calamine = { version = "0.21", features = ["dates"] }
 
 # fetch data
-reqwest = { version = "0.11", features = ["rustls-tls", "blocking", "socks"] }
+reqwest = { version = "0.11", features = ["rustls-tls", "socks"] }
 
 # data serialization
 serde = { version = "1", features = ["derive"] }

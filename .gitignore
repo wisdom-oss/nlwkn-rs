@@ -4,5 +4,8 @@
 # cargo
 /target
 
+# fetched data
+/data
+
 # tmp files
-test/~$cadenza.xlsx
+/test/~$cadenza.xlsx

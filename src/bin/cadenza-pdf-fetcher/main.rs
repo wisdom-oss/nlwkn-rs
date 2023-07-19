@@ -2,6 +2,7 @@ use crate::tor::start_socks_proxy;
 use crate::xlsx::{CadenzaTable, CadenzaTableRow};
 use clap::Parser;
 use std::cmp::Ordering;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tor_rtcompat::PreferredRuntime;
@@ -34,10 +35,17 @@ async fn main() {
     println!("deduplicating table");
     cadenza_table.dedup_by(dedup_cadenza_table);
 
+    let client = reqwest::ClientBuilder::new().proxy(reqwest::Proxy::http(format!("socks5://localhost:{}", *tor::SOCKS_PORT).as_str()).unwrap()).build().unwrap();
+    fs::create_dir_all("data/reports").unwrap();
+
     for (i, water_right_no) in cadenza_table.rows().iter().map(|row| row.no).enumerate() {
         println!("fetching water right {}", water_right_no);
         let report_link = browse::fetch_water_right_report(water_right_no).unwrap();
         dbg!(&report_link);
+
+        let full_report_link = format!("{}{}", browse::CADENZA_URL, report_link.split("/cadenza/").skip(1).next().unwrap());
+        let pdf_bytes = client.get(&full_report_link).send().await.unwrap().bytes().await.unwrap();
+        fs::write(format!("data/reports/rep{}.pdf", water_right_no), pdf_bytes).unwrap();
 
         if i > 5 {
             break;
