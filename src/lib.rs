@@ -4,8 +4,8 @@ use std::collections::HashMap;
 use crate::util::data_structs;
 use helper_types::*;
 
-pub mod helper_types;
 pub mod cli;
+pub mod helper_types;
 mod util;
 
 pub type WaterRightNo = u64;
