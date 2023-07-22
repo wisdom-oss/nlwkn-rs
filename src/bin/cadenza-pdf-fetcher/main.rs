@@ -85,7 +85,7 @@ async fn main() {
     let progress = ProgressBar::new(cadenza_table.rows().len() as u64)
         .with_style(
             ProgressStyle::with_template(
-                "{msg:.cyan}  {wide_bar:.magenta/.234}  {human_pos:.magenta}{slash:.magenta}{human_len:.magenta} {prefix:.cyan} (eta {eta})"
+                "{msg:.cyan}  {wide_bar:.magenta/.234}  {human_pos:.magenta}{slash:.magenta}{human_len:.magenta} {prefix:.cyan}"
             )
                 .expect("is valid schema")
                 .with_key("slash", |_: &ProgressState, w: &mut dyn Write| write!(w, "/").expect("write should work here"))
