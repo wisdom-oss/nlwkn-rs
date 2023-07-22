@@ -15,7 +15,7 @@ pub static CADENZA_TIMEOUT: Duration = Duration::from_millis(crate::CONFIG.caden
 const HEADLESS: bool = true;
 
 #[cfg(debug_assertions)]
-const HEADLESS: bool = true; //false;
+const HEADLESS: bool = false;
 
 pub fn fetch_water_right_report(water_right_no: u64) -> anyhow::Result<String> {
     let proxy = OsString::from(format!(

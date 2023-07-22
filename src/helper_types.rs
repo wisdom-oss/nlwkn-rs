@@ -4,7 +4,7 @@ use std::cmp::Ordering;
 
 use crate::util::data_structs;
 
-#[derive(Debug, Eq, PartialEq, Hash, Ord)]
+#[derive(Debug, Eq, PartialEq, Hash)]
 pub enum TimeDimension {
     Seconds(u64),
     Minutes(u64),
@@ -113,7 +113,13 @@ impl<'de> Deserialize<'de> for TimeDimension {
 
 impl PartialOrd for TimeDimension {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.as_secs().partial_cmp(&other.as_secs())
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for TimeDimension {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.as_secs().cmp(&other.as_secs())
     }
 }
 

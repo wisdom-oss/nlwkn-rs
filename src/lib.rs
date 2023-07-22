@@ -5,7 +5,10 @@ use crate::util::data_structs;
 use helper_types::*;
 
 pub mod helper_types;
+pub mod cli;
 mod util;
+
+pub type WaterRightNo = u64;
 
 data_structs! {
     /// Data type describing a single water right.
@@ -13,7 +16,7 @@ data_structs! {
     #[serde(rename_all = "camelCase")]
     struct WaterRight {
         /// "Wasserrecht Nr."
-        no: i64,
+        no: WaterRightNo,
 
         /// "Rechtsinhaber"
         bailee?: String,

@@ -1,5 +1,6 @@
 use anyhow::Result;
 use calamine::{RangeDeserializerBuilder, Reader, Xlsx};
+use nlwkn_rs::WaterRightNo;
 use serde::{Deserialize, Deserializer};
 use std::cmp::Ordering;
 use std::path::Path;
@@ -12,7 +13,7 @@ pub struct CadenzaTable(Vec<CadenzaTableRow>);
 #[serde(deny_unknown_fields)]
 pub struct CadenzaTableRow {
     #[serde(rename = "Wasserrecht Nr.")]
-    pub no: u64,
+    pub no: WaterRightNo,
 
     #[serde(rename = "Rechtsinhaber")]
     pub bailee: Option<String>,
@@ -81,11 +82,11 @@ pub struct CadenzaTableRow {
     #[serde(rename = "Wasserschutzgebiet")]
     pub water_protection_area: Option<String>,
 
-    #[serde(rename = "UTM-Rechtswert")]
-    pub utm_easting: i64,
+    #[serde(rename = "UTM-Rechtswert", deserialize_with = "zero_as_none")]
+    pub utm_easting: Option<i64>,
 
-    #[serde(rename = "UTM-Hochwert")]
-    pub utm_northing: i64,
+    #[serde(rename = "UTM-Hochwert", deserialize_with = "zero_as_none")]
+    pub utm_northing: Option<i64>,
 }
 
 impl CadenzaTable {
@@ -113,8 +114,11 @@ impl CadenzaTable {
         let slice = self.0.as_mut_slice();
         slice.sort_by(compare);
     }
-    
-    pub fn dedup_by<F>(&mut self, same_bucket: F) where F: FnMut(&mut CadenzaTableRow, &mut CadenzaTableRow) -> bool {
+
+    pub fn dedup_by<F>(&mut self, same_bucket: F)
+    where
+        F: FnMut(&mut CadenzaTableRow, &mut CadenzaTableRow) -> bool,
+    {
         self.0.dedup_by(same_bucket);
     }
 }
@@ -130,6 +134,18 @@ where
             .ok_or(serde::de::Error::custom("cannot convert to date"))?
             .to_string(),
     ))
+}
+
+fn zero_as_none<'de, D>(deserializer: D) -> Result<Option<i64>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let option: Option<i64> = Option::deserialize(deserializer)?;
+    match option {
+        Some(0) => Ok(None),
+        Some(x) => Ok(Some(x)),
+        None => Ok(None),
+    }
 }
 
 #[cfg(test)]
@@ -174,8 +190,8 @@ mod tests {
             groundwater_volume: "Ilmenau Lockergestein links".to_string().into(),
             flood_area: None,
             water_protection_area: None,
-            utm_easting: 32603873,
-            utm_northing: 5852015,
+            utm_easting: Some(32603873),
+            utm_northing: Some(5852015),
         };
 
         assert_eq!(rows[0], first_row);
