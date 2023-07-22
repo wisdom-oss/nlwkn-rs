@@ -11,11 +11,17 @@ use std::time::Duration;
 pub static CADENZA_URL: &str = crate::CONFIG.cadenza.url;
 pub static CADENZA_TIMEOUT: Duration = Duration::from_millis(crate::CONFIG.cadenza.timeout as u64);
 
-#[cfg(not(debug_assertions))]
+#[cfg(not(feature = "head"))]
 const HEADLESS: bool = true;
 
-#[cfg(debug_assertions)]
+#[cfg(feature = "head")]
 const HEADLESS: bool = false;
+
+#[cfg(not(feature = "docker"))]
+const IN_DOCKER: bool = false;
+
+#[cfg(feature = "docker")]
+const IN_DOCKER: bool = true;
 
 pub fn fetch_water_right_report(water_right_no: u64) -> anyhow::Result<String> {
     let proxy = OsString::from(format!(
@@ -24,6 +30,7 @@ pub fn fetch_water_right_report(water_right_no: u64) -> anyhow::Result<String> {
     ));
     let launch_options = LaunchOptionsBuilder::default()
         .headless(HEADLESS)
+        .sandbox(!IN_DOCKER)
         .args(vec![&proxy])
         .build()?;
     let browser = Browser::new(launch_options)?;
