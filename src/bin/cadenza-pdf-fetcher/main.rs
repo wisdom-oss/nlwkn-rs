@@ -93,7 +93,8 @@ async fn main() {
                 .progress_chars("━ ━")
         )
         .with_message("Fetching Reports");
-    
+    progress.enable_steady_tick(Duration::from_secs(1));
+
     'wr_loop: for water_right_no in cadenza_table.rows().iter().map(|row| row.no) {
         if fetched_reports.contains(&water_right_no) {
             progress.println(format!(
