@@ -1,6 +1,6 @@
 use arti_client::TorClient;
 use lazy_static::lazy_static;
-use std::ops::Deref;
+
 use tor_rtcompat::PreferredRuntime;
 
 lazy_static! {

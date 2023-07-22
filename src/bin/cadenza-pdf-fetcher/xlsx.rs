@@ -98,7 +98,7 @@ impl CadenzaTable {
             .ok_or(anyhow::Error::msg("workbook empty"))?;
         let iter = RangeDeserializerBuilder::new()
             .has_headers(true)
-            .from_range(&range)?;
+            .from_range(range)?;
         let rows: Result<Vec<CadenzaTableRow>, _> = iter.collect();
         Ok(CadenzaTable(rows?))
     }
@@ -159,7 +159,7 @@ mod tests {
     #[test]
     fn parsing_works() {
         let xlsx_path = Path::new(XLSX_PATH);
-        let table = CadenzaTable::from_path(&xlsx_path).unwrap();
+        let table = CadenzaTable::from_path(xlsx_path).unwrap();
         let rows = table.rows();
 
         let first_row = CadenzaTableRow {

@@ -1,20 +1,19 @@
 use crate::tor::start_socks_proxy;
 use crate::xlsx::{CadenzaTable, CadenzaTableRow};
-use arti_client::isolation::Isolation;
 use clap::Parser;
 use console::Alignment;
 use indicatif::{ProgressBar, ProgressState, ProgressStyle};
 use nlwkn_rs::cli::ProgressBarGuard;
 use nlwkn_rs::WaterRightNo;
 use std::cmp::Ordering;
-use std::collections::{BTreeSet, HashSet};
-use std::fmt::{format, Write};
-use std::ops::Deref;
-use std::path::{Display, Path, PathBuf};
-use std::sync::atomic;
-use std::sync::atomic::AtomicBool;
+use std::collections::{BTreeSet};
+use std::fmt::{Write};
+
+use std::path::{PathBuf};
+
+
 use std::time::Duration;
-use std::{fs, process};
+use std::{fs};
 
 mod browse;
 mod tor;
@@ -64,7 +63,7 @@ async fn main() {
 
     {
         let _pb = ProgressBarGuard::new_wait_spinner("Waiting for TOR proxy...");
-        while let Err(_) = client.get(browse::CADENZA_URL).send().await {
+        while client.get(browse::CADENZA_URL).send().await.is_err() {
             tokio::time::sleep(Duration::from_secs(2)).await;
         }
     }
@@ -191,9 +190,7 @@ async fn fetch(water_right_no: WaterRightNo, client: &reqwest::Client) -> anyhow
         "{}{}",
         browse::CADENZA_URL,
         report_link
-            .split("/cadenza/")
-            .skip(1)
-            .next()
+            .split("/cadenza/").nth(1)
             .ok_or(anyhow::Error::msg("report link has no '/cadenza/' in path"))?
     );
     let pdf_bytes = client.get(&full_report_link).send().await?.bytes().await?;
@@ -250,9 +247,7 @@ fn find_fetched_reports() -> anyhow::Result<Vec<WaterRightNo>> {
         }
 
         let water_right_no = file_name
-            .split("rep")
-            .skip(1)
-            .next()
+            .split("rep").nth(1)
             .expect("file must start with 'rep'")
             .split(".pdf")
             .next()

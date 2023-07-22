@@ -21,7 +21,7 @@ impl ProgressBarGuard {
         let spinner = ProgressBar::new_spinner().with_message(msg).with_style(
             ProgressStyle::with_template("{spinner:.magenta} {msg}")
                 .expect("is valid schema")
-                .tick_strings(&vec!["/", "-", "\\", "|"]),
+                .tick_strings(&["/", "-", "\\", "|"]),
         );
         spinner.enable_steady_tick(SPINNER_INTERVAL);
         Self::new(spinner, None)
