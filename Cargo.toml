@@ -6,7 +6,7 @@ publish = false
 
 [features]
 head = []
-docker = []
+no-sandbox = []
 
 [[bin]]
 name = "cadenza-pdf-fetcher"

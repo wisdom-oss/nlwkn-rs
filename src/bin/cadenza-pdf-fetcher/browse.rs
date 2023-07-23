@@ -17,11 +17,11 @@ const HEADLESS: bool = true;
 #[cfg(feature = "head")]
 const HEADLESS: bool = false;
 
-#[cfg(not(feature = "docker"))]
-const IN_DOCKER: bool = false;
+#[cfg(not(feature = "no-sandbox"))]
+const NO_SANDBOX: bool = false;
 
-#[cfg(feature = "docker")]
-const IN_DOCKER: bool = true;
+#[cfg(feature = "no-sandbox")]
+const NO_SANDBOX: bool = true;
 
 pub fn fetch_water_right_report(water_right_no: u64) -> anyhow::Result<String> {
     let proxy = OsString::from(format!(
@@ -30,7 +30,7 @@ pub fn fetch_water_right_report(water_right_no: u64) -> anyhow::Result<String> {
     ));
     let launch_options = LaunchOptionsBuilder::default()
         .headless(HEADLESS)
-        .sandbox(!IN_DOCKER)
+        .sandbox(!NO_SANDBOX)
         .args(vec![&proxy])
         .build()?;
     let browser = Browser::new(launch_options)?;
