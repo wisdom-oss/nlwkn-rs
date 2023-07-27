@@ -5,7 +5,6 @@ use headless_chrome::{Browser, LaunchOptionsBuilder};
 use std::ffi::OsString;
 use std::ops::Deref;
 
-
 use std::time::Duration;
 
 pub static CADENZA_URL: &str = crate::CONFIG.cadenza.url;
@@ -47,7 +46,8 @@ pub fn fetch_water_right_report(water_right_no: u64) -> anyhow::Result<String> {
     // dbg!(&map_button_attributes);
     let map_button_link = map_button_attributes
         .iter()
-        .skip_while(|attr| attr.as_str() != "href").nth(1)
+        .skip_while(|attr| attr.as_str() != "href")
+        .nth(1)
         .ok_or(anyhow::Error::msg("map button has no link"))?;
     // dbg!(&map_button_link);
     let session_id = map_button_link
@@ -65,7 +65,8 @@ pub fn fetch_water_right_report(water_right_no: u64) -> anyhow::Result<String> {
         .ok_or(anyhow::Error::msg("report has no link"))?;
     let report_link = report_anchor_attributes
         .iter()
-        .skip_while(|attr| attr.as_str() != "href").nth(1)
+        .skip_while(|attr| attr.as_str() != "href")
+        .nth(1)
         .ok_or(anyhow::Error::msg("report has no href"))?;
 
     Ok(report_link.to_string())

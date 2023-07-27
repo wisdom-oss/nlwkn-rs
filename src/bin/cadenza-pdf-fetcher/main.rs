@@ -6,14 +6,13 @@ use indicatif::{ProgressBar, ProgressState, ProgressStyle};
 use nlwkn_rs::cli::ProgressBarGuard;
 use nlwkn_rs::WaterRightNo;
 use std::cmp::Ordering;
-use std::collections::{BTreeSet};
-use std::fmt::{Write};
+use std::collections::BTreeSet;
+use std::fmt::Write;
 
-use std::path::{PathBuf};
+use std::path::PathBuf;
 
-
+use std::fs;
 use std::time::Duration;
-use std::{fs};
 
 mod browse;
 mod tor;
@@ -190,7 +189,8 @@ async fn fetch(water_right_no: WaterRightNo, client: &reqwest::Client) -> anyhow
         "{}{}",
         browse::CADENZA_URL,
         report_link
-            .split("/cadenza/").nth(1)
+            .split("/cadenza/")
+            .nth(1)
             .ok_or(anyhow::Error::msg("report link has no '/cadenza/' in path"))?
     );
     let pdf_bytes = client.get(&full_report_link).send().await?.bytes().await?;
@@ -247,7 +247,8 @@ fn find_fetched_reports() -> anyhow::Result<Vec<WaterRightNo>> {
         }
 
         let water_right_no = file_name
-            .split("rep").nth(1)
+            .split("rep")
+            .nth(1)
             .expect("file must start with 'rep'")
             .split(".pdf")
             .next()

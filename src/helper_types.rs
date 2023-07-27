@@ -126,13 +126,13 @@ impl Ord for TimeDimension {
 data_structs! {
     /// A number that has a unit.
     struct DimensionedNumber {
-        value: i64,
+        value: f64,
         unit: String,
     }
 
     /// A number that has a unit and a description.
     struct DescriptiveNumber {
-        value: i64,
+        value: f64,
         unit: String,
         description?: String,
     }

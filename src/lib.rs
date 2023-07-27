@@ -1,5 +1,10 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::error::Error;
+use std::fmt::{Display, Formatter};
+use std::str::FromStr;
+use lazy_static::lazy_static;
+use regex::Regex;
 
 use crate::util::data_structs;
 use helper_types::*;
@@ -42,6 +47,9 @@ data_structs! {
         /// "Erteilende Behörde/erteilt durch"
         granting_authority?: String,
 
+        /// "erstmalig erstellt am"
+        first_grant?: String,
+
         /// "Änderungsdatum"
         date_of_change?: String,
 
@@ -56,6 +64,8 @@ data_structs! {
 
         /// "Adresse"
         address?: String,
+
+        legal_departments: HashMap<LegalDepartmentAbbreviation, LegalDepartment>,
 
         //report_file?: Buffer,
 
@@ -120,7 +130,7 @@ data_structs! {
         plot?: String,
 
         /// "Unterhaltungsverband"
-        mainenance_association?: (i64, String),
+        maintenance_association?: (i64, String),
 
         /// "EU-Bearbeitungsgebiet"
         eu_survey_area?: (i64, String),
@@ -128,14 +138,17 @@ data_structs! {
         /// "Einzugsgebietskennzahl"
         basin_no?: (i64, String),
 
+        /// "Verordnungszitat"
+        regulation_citation?: String,
+
         /// "Entnahmemenge"
-        withdrawal_rate?: RateRecord,
+        withdrawal_rate: RateRecord,
 
         /// "Einleitungsmenge"
-        injection_rate?: RateRecord,
+        injection_rate: RateRecord,
 
         /// "Abwasservolumenstrom"
-        waste_water_flow_volume?: RateRecord,
+        waste_water_flow_volume: RateRecord,
 
         /// "Flussgebiet"
         rivershed?: String,
@@ -156,18 +169,20 @@ data_structs! {
         dam_target_levels?: DamTargets,
 
         /// "Ableitungsmenge"
-        fluid_discharge?: RateRecord,
+        fluid_discharge: RateRecord,
 
         /// "Zusatzregen"
-        rain_supplement?: RateRecord,
+        rain_supplement: RateRecord,
 
         /// "Beregnungsfläche"
         irrigation_area?: DimensionedNumber,
 
+        // TODO: check if this is still necessary or if HashMap would be better
         /// "pH-Werte"
         #[serde(rename = "pHValues")]
         ph_values?: PHValues,
 
+        // TODO: check if this is still necessary or if HashMap would be better
         /// "Feststoffe"
         solid?: Solids,
 
@@ -225,8 +240,82 @@ data_structs! {
     }
 }
 
+impl WaterRight {
+    pub fn new(water_right_no: WaterRightNo) -> Self {
+        WaterRight {
+            no: water_right_no,
+            bailee: None,
+            valid_to: None,
+            state: None,
+            valid_from: None,
+            legal_title: None,
+            water_authority: None,
+            registering_authority: None,
+            granting_authority: None,
+            first_grant: None,
+            date_of_change: None,
+            file_reference: None,
+            external_identifier: None,
+            subject: None,
+            address: None,
+            legal_departments: Default::default(),
+            date_of_file_crawl: None,
+            annotation: None,
+        }
+    }
+}
+
+impl LegalDepartment {
+    pub fn new(abbreviation: LegalDepartmentAbbreviation, description: String) -> Self {
+        LegalDepartment {
+            description,
+            abbreviation,
+            usage_locations: vec![],
+        }
+    }
+}
+
+impl UsageLocation {
+    pub fn new() -> Self {
+        UsageLocation {
+            no: None,
+            serial_no: None,
+            active: None,
+            real: None,
+            name: None,
+            legal_scope: None,
+            top_map_1_25000: None,
+            municipal_area: None,
+            county: None,
+            local_sub_district: None,
+            field: None,
+            plot: None,
+            maintenance_association: None,
+            eu_survey_area: None,
+            basin_no: None,
+            regulation_citation: None,
+            withdrawal_rate: Default::default(),
+            injection_rate: Default::default(),
+            waste_water_flow_volume: Default::default(),
+            rivershed: None,
+            groundwater_volume: None,
+            water_body: None,
+            flood_area: None,
+            water_protection_area: None,
+            dam_target_levels: None,
+            fluid_discharge: Default::default(),
+            rain_supplement: Default::default(),
+            irrigation_area: None,
+            ph_values: None,
+            solid: None,
+            utm_easting: None,
+            utm_northing: None,
+        }
+    }
+}
+
 /// The abbreviations of the legal departments.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub enum LegalDepartmentAbbreviation {
     /// "Entnahme von Wasser oder Entnahmen fester Stoffe aus oberirdischen Gewässern"
     A,
@@ -253,4 +342,51 @@ pub enum LegalDepartmentAbbreviation {
     L,
 }
 
+#[derive(Debug)]
+pub struct ParseLegalDepartmentError(String);
+
+impl Display for ParseLegalDepartmentError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "unknown legal department abbreviation {}", self.0)
+    }
+}
+
+impl Error for ParseLegalDepartmentError {}
+
+impl FromStr for LegalDepartmentAbbreviation {
+    type Err = ParseLegalDepartmentError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "A" => Ok(Self::A),
+            "B" => Ok(Self::B),
+            "C" => Ok(Self::C),
+            "D" => Ok(Self::D),
+            "E" => Ok(Self::E),
+            "F" => Ok(Self::F),
+            "K" => Ok(Self::K),
+            "L" => Ok(Self::L),
+            s => Err(ParseLegalDepartmentError(s.to_string())),
+        }
+    }
+}
+
 type RateRecord = HashMap<TimeDimension, DimensionedNumber>;
+
+lazy_static! {
+    static ref UNIT_RE: Regex = Regex::new(r"^(?<measurement>[^/]+)/(?<factor>\d*)(?<time>\w+)$").expect("valid regex");
+}
+
+pub fn rate_entry_from_str(value: &str, unit: &str) -> anyhow::Result<(TimeDimension, DimensionedNumber)> {
+    let value: f64 = value.parse()?;
+
+    let unit_capture = UNIT_RE.captures(unit).ok_or(anyhow::Error::msg(format!("unit {unit:?} has invalid format")))?;
+    let unit = unit_capture["measurement"].to_string();
+    let factor: u64 = unit_capture["factor"].parse().unwrap_or(1);
+    let time = match &unit_capture["time"] {
+        "a" => TimeDimension::Years(factor),
+        _ => todo!()
+    };
+
+    Ok((time, DimensionedNumber { value, unit }))
+}
