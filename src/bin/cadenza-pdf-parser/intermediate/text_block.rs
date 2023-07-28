@@ -13,7 +13,7 @@ pub struct TextBlock {
     pub font_family: Option<String>,
     pub font_size: Option<f32>,
     pub fill_color: Option<(f32, f32, f32)>,
-    pub content: Option<String>,
+    pub content: Option<String>
 }
 
 impl TryFrom<lopdf::Document> for TextBlockRepr {
@@ -48,7 +48,7 @@ impl TryFrom<lopdf::Document> for TextBlockRepr {
                     }
 
                     // ignore rest
-                    _ => (),
+                    _ => ()
                 }
             }
         }
@@ -71,7 +71,7 @@ fn handle_tm(text_block: &mut TextBlock, operands: &Vec<Object>) -> anyhow::Resu
             eprintln!("warning: expected number for 'Tm' operand[4]");
             None
         }
-        _ => None,
+        _ => None
     };
 
     text_block.y = match operands.get(5) {
@@ -81,7 +81,7 @@ fn handle_tm(text_block: &mut TextBlock, operands: &Vec<Object>) -> anyhow::Resu
             eprintln!("warning: expected number for 'Tm' operand[5]");
             None
         }
-        _ => None,
+        _ => None
     };
 
     Ok(())
@@ -107,7 +107,7 @@ fn handle_tf(text_block: &mut TextBlock, operands: &Vec<Object>) {
             eprintln!("warning: expected string for 'Tf' operand[0]");
             None
         }
-        _ => None,
+        _ => None
     };
 
     text_block.font_size = match operands.get(1) {
@@ -117,7 +117,7 @@ fn handle_tf(text_block: &mut TextBlock, operands: &Vec<Object>) {
             eprintln!("warning: expected number for 'Tf' operand[1]");
             None
         }
-        _ => None,
+        _ => None
     };
 }
 
@@ -135,7 +135,7 @@ fn handle_rg(text_block: &mut TextBlock, operands: &Vec<Object>) {
             eprintln!("warning: expected number for 'rg' operand[0]");
             None
         }
-        _ => None,
+        _ => None
     };
 
     let g = match operands.get(1) {
@@ -145,7 +145,7 @@ fn handle_rg(text_block: &mut TextBlock, operands: &Vec<Object>) {
             eprintln!("warning: expected number for 'rg' operand[1]");
             None
         }
-        _ => None,
+        _ => None
     };
 
     let b = match operands.get(0) {
@@ -155,7 +155,7 @@ fn handle_rg(text_block: &mut TextBlock, operands: &Vec<Object>) {
             eprintln!("warning: expected number for 'rg' operand[2]");
             None
         }
-        _ => None,
+        _ => None
     };
 
     if let (Some(r), Some(g), Some(b)) = (r, g, b) {
@@ -175,17 +175,17 @@ fn handle_tj(text_block: &mut TextBlock, operands: &Vec<Object>) {
             Object::String(_, _) => {
                 eprintln!("warning: expected string literal for 'Tj'");
             }
-            _ => (),
+            _ => ()
         }
     }
 
     text_block.content = match (text_block.content.take(), !content.is_empty()) {
         (Some(prev), true) => match prev.chars().last() {
             Some('-' | '/') => Some(format!("{prev}{content}")),
-            _ => Some(format!("{prev} {content}")),
+            _ => Some(format!("{prev} {content}"))
         },
         (Some(prev), false) => Some(prev),
         (None, true) => Some(content),
-        (None, false) => None,
+        (None, false) => None
     };
 }

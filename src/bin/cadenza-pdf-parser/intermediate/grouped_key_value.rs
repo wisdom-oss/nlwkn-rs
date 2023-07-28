@@ -1,12 +1,13 @@
-use crate::intermediate::key_value::{KeyValuePair, KeyValueRepr};
 use std::collections::HashMap;
 use std::iter::Peekable;
+
+use crate::intermediate::key_value::{KeyValuePair, KeyValueRepr};
 
 #[derive(Debug)]
 pub struct GroupedKeyValueRepr {
     pub root: Vec<KeyValuePair>,
     pub departments: Vec<(String, Vec<Vec<KeyValuePair>>)>,
-    pub annotation: Option<String>,
+    pub annotation: Option<String>
 }
 
 impl From<KeyValueRepr> for GroupedKeyValueRepr {
@@ -39,18 +40,21 @@ impl From<KeyValueRepr> for GroupedKeyValueRepr {
         Self {
             root,
             departments,
-            annotation,
+            annotation
         }
     }
 }
 
 fn group_departments(
-    iter: &mut Peekable<impl Iterator<Item = KeyValuePair>>,
+    iter: &mut Peekable<impl Iterator<Item = KeyValuePair>>
 ) -> Vec<(String, Vec<Vec<KeyValuePair>>)> {
     let mut departments = Vec::new();
     while let Some(next) = iter.next() {
         if next.0.as_str() != "Abteilung:" {
-            panic!("did not get 'Abteilung', only pass to this function of next element is 'Abteilung'");
+            panic!(
+                "did not get 'Abteilung', only pass to this function of next element is \
+                 'Abteilung'"
+            );
         }
 
         departments.push((next.1.join(""), group_usage_locations(iter)));
@@ -60,7 +64,7 @@ fn group_departments(
 }
 
 fn group_usage_locations(
-    iter: &mut Peekable<impl Iterator<Item = KeyValuePair>>,
+    iter: &mut Peekable<impl Iterator<Item = KeyValuePair>>
 ) -> Vec<Vec<KeyValuePair>> {
     let mut usage_locations = Vec::new();
     let mut usage_location = Vec::new();
@@ -74,7 +78,7 @@ fn group_usage_locations(
                     usage_location = Vec::new();
                 }
             }
-            _ => (),
+            _ => ()
         }
 
         let next = iter.next().expect("cannot peek if next is none");

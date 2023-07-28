@@ -1,9 +1,10 @@
 use std::cmp::Ordering;
 use std::path::Path;
-use calamine::{RangeDeserializerBuilder, Reader};
+
+use calamine::{RangeDeserializerBuilder, Reader, Xlsx};
 use serde::{Deserialize, Deserializer};
+
 use crate::WaterRightNo;
-use calamine::Xlsx;
 
 #[derive(Debug)]
 pub struct CadenzaTable(Vec<CadenzaTableRow>);
@@ -86,7 +87,7 @@ pub struct CadenzaTableRow {
     pub utm_easting: Option<i64>,
 
     #[serde(rename = "UTM-Hochwert", deserialize_with = "zero_as_none")]
-    pub utm_northing: Option<i64>,
+    pub utm_northing: Option<i64>
 }
 
 impl CadenzaTable {
@@ -108,50 +109,51 @@ impl CadenzaTable {
     }
 
     pub fn sort_by<F>(&mut self, compare: F)
-        where
-            F: FnMut(&CadenzaTableRow, &CadenzaTableRow) -> Ordering,
+    where
+        F: FnMut(&CadenzaTableRow, &CadenzaTableRow) -> Ordering
     {
         let slice = self.0.as_mut_slice();
         slice.sort_by(compare);
     }
 
     pub fn dedup_by<F>(&mut self, same_bucket: F)
-        where
-            F: FnMut(&mut CadenzaTableRow, &mut CadenzaTableRow) -> bool,
+    where
+        F: FnMut(&mut CadenzaTableRow, &mut CadenzaTableRow) -> bool
     {
         self.0.dedup_by(same_bucket);
     }
 }
 
 fn deserialize_date<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
-    where
-        D: Deserializer<'de>,
+where
+    D: Deserializer<'de>
 {
     let float: calamine::DataType = calamine::DataType::deserialize(deserializer)?;
     Ok(Some(
         float
             .as_date()
             .ok_or(serde::de::Error::custom("cannot convert to date"))?
-            .to_string(),
+            .to_string()
     ))
 }
 
 fn zero_as_none<'de, D>(deserializer: D) -> Result<Option<i64>, D::Error>
-    where
-        D: Deserializer<'de>,
+where
+    D: Deserializer<'de>
 {
     let option: Option<i64> = Option::deserialize(deserializer)?;
     match option {
         Some(0) => Ok(None),
         Some(x) => Ok(Some(x)),
-        None => Ok(None),
+        None => Ok(None)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::path::Path;
+
+    use super::*;
 
     const XLSX_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/test/cadenza.xlsx");
 
@@ -181,8 +183,8 @@ mod tests {
             usage_location: "OW-entn.f.Fischt.b.NiedrigwasKörtkeBokel"
                 .to_string()
                 .into(),
-            legal_department:
-            "Entnahme von Wasser oder Entnahmen fester Stoffe aus oberirdischen Gewässern"
+            legal_department: "Entnahme von Wasser oder Entnahmen fester Stoffe aus oberirdischen \
+                               Gewässern"
                 .to_string(),
             legal_scope: "A70 Speisung von Teichen".to_string().into(),
             county: "Gifhorn".to_string().into(),
@@ -191,7 +193,7 @@ mod tests {
             flood_area: None,
             water_protection_area: None,
             utm_easting: Some(32603873),
-            utm_northing: Some(5852015),
+            utm_northing: Some(5852015)
         };
 
         assert_eq!(rows[0], first_row);

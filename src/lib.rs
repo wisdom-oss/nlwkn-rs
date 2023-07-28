@@ -1,13 +1,14 @@
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
+
+use helper_types::*;
 use lazy_static::lazy_static;
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 
 use crate::util::data_structs;
-use helper_types::*;
 
 pub mod cadenza;
 pub mod cli;
@@ -261,7 +262,7 @@ impl WaterRight {
             address: None,
             legal_departments: Default::default(),
             date_of_file_crawl: None,
-            annotation: None,
+            annotation: None
         }
     }
 }
@@ -271,7 +272,7 @@ impl LegalDepartment {
         LegalDepartment {
             description,
             abbreviation,
-            usage_locations: vec![],
+            usage_locations: vec![]
         }
     }
 }
@@ -310,7 +311,7 @@ impl UsageLocation {
             ph_values: None,
             solid: None,
             utm_easting: None,
-            utm_northing: None,
+            utm_northing: None
         }
     }
 }
@@ -318,7 +319,8 @@ impl UsageLocation {
 /// The abbreviations of the legal departments.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub enum LegalDepartmentAbbreviation {
-    /// "Entnahme von Wasser oder Entnahmen fester Stoffe aus oberirdischen Gewässern"
+    /// "Entnahme von Wasser oder Entnahmen fester Stoffe aus oberirdischen
+    /// Gewässern"
     A,
 
     /// "Einbringen und Einleiten von Stoffen in oberirdische und Küstengewässer
@@ -340,7 +342,7 @@ pub enum LegalDepartmentAbbreviation {
     K,
 
     /// "Fischereirechte"
-    L,
+    L
 }
 
 #[derive(Debug)]
@@ -367,7 +369,7 @@ impl FromStr for LegalDepartmentAbbreviation {
             "F" => Ok(Self::F),
             "K" => Ok(Self::K),
             "L" => Ok(Self::L),
-            s => Err(ParseLegalDepartmentError(s.to_string())),
+            s => Err(ParseLegalDepartmentError(s.to_string()))
         }
     }
 }
@@ -375,13 +377,19 @@ impl FromStr for LegalDepartmentAbbreviation {
 type RateRecord = HashMap<TimeDimension, DimensionedNumber>;
 
 lazy_static! {
-    static ref UNIT_RE: Regex = Regex::new(r"^(?<measurement>[^/]+)/(?<factor>\d*)(?<time>\w+)$").expect("valid regex");
+    static ref UNIT_RE: Regex =
+        Regex::new(r"^(?<measurement>[^/]+)/(?<factor>\d*)(?<time>\w+)$").expect("valid regex");
 }
 
-pub fn rate_entry_from_str(value: &str, unit: &str) -> anyhow::Result<(TimeDimension, DimensionedNumber)> {
+pub fn rate_entry_from_str(
+    value: &str,
+    unit: &str
+) -> anyhow::Result<(TimeDimension, DimensionedNumber)> {
     let value: f64 = value.parse()?;
 
-    let unit_capture = UNIT_RE.captures(unit).ok_or(anyhow::Error::msg(format!("unit {unit:?} has invalid format")))?;
+    let unit_capture = UNIT_RE.captures(unit).ok_or(anyhow::Error::msg(format!(
+        "unit {unit:?} has invalid format"
+    )))?;
     let unit = unit_capture["measurement"].to_string();
     let factor: u64 = unit_capture["factor"].parse().unwrap_or(1);
     let time = match &unit_capture["time"] {

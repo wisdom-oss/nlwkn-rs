@@ -1,5 +1,6 @@
-use crate::intermediate::key_value::KeyValuePair;
 use nlwkn_rs::WaterRight;
+
+use crate::intermediate::key_value::KeyValuePair;
 
 pub fn parse_root(items: Vec<KeyValuePair>, water_right: &mut WaterRight) -> anyhow::Result<()> {
     for (key, values) in items {

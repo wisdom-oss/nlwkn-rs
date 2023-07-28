@@ -1,9 +1,11 @@
+use std::env;
+
+use lopdf::Document;
+use nlwkn_rs::{LegalDepartment, UsageLocation, WaterRight, WaterRightNo};
+
 use crate::intermediate::grouped_key_value::GroupedKeyValueRepr;
 use crate::intermediate::key_value::KeyValueRepr;
 use crate::intermediate::text_block::{TextBlock, TextBlockRepr};
-use lopdf::Document;
-use nlwkn_rs::{LegalDepartment, UsageLocation, WaterRight, WaterRightNo};
-use std::env;
 
 mod intermediate;
 mod parse;
@@ -12,7 +14,7 @@ fn main() -> anyhow::Result<()> {
     let document = lopdf::Document::load(
         env::args()
             .nth(1)
-            .ok_or(anyhow::Error::msg("no argument passed"))?,
+            .ok_or(anyhow::Error::msg("no argument passed"))?
     )?;
     let text_block_repr = TextBlockRepr::try_from(document.clone())?;
     let key_value_repr = KeyValueRepr::from(text_block_repr);

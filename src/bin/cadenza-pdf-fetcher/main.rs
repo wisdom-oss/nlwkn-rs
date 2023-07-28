@@ -1,18 +1,18 @@
-use crate::tor::start_socks_proxy;
-use clap::Parser;
-use console::Alignment;
-use indicatif::{ProgressBar, ProgressState, ProgressStyle};
-use nlwkn_rs::cli::ProgressBarGuard;
-use nlwkn_rs::WaterRightNo;
 use std::cmp::Ordering;
 use std::collections::BTreeSet;
 use std::fmt::Write;
-
-use std::path::PathBuf;
-
 use std::fs;
+use std::path::PathBuf;
 use std::time::Duration;
+
+use clap::Parser;
+use console::Alignment;
+use indicatif::{ProgressBar, ProgressState, ProgressStyle};
 use nlwkn_rs::cadenza::{CadenzaTable, CadenzaTableRow};
+use nlwkn_rs::cli::ProgressBarGuard;
+use nlwkn_rs::WaterRightNo;
+
+use crate::tor::start_socks_proxy;
 
 mod browse;
 mod tor;
@@ -28,7 +28,7 @@ const PRINT_PADDING: usize = 9;
 #[command(version, about)]
 struct Args {
     /// Path to cadenza-provided xlsx file
-    xlsx_path: PathBuf,
+    xlsx_path: PathBuf
 }
 
 #[tokio::main]
@@ -54,7 +54,7 @@ async fn main() {
     let client = reqwest::ClientBuilder::new()
         .proxy(
             reqwest::Proxy::http(format!("socks5://localhost:{}", *tor::SOCKS_PORT).as_str())
-                .expect("proxy schema invalid"),
+                .expect("proxy schema invalid")
         )
         .build()
         .expect("cannot build GET client");
@@ -74,7 +74,7 @@ async fn main() {
             find_fetched_reports()
                 .expect("could not find already fetched reports")
                 .iter()
-                .copied(),
+                .copied()
         )
     };
 
@@ -83,11 +83,14 @@ async fn main() {
     let progress = ProgressBar::new(cadenza_table.rows().len() as u64)
         .with_style(
             ProgressStyle::with_template(
-                "{msg:.cyan}  {wide_bar:.magenta/.234}  {human_pos:.magenta}{slash:.magenta}{human_len:.magenta} {prefix:.cyan}"
+                "{msg:.cyan}  {wide_bar:.magenta/.234}  \
+                 {human_pos:.magenta}{slash:.magenta}{human_len:.magenta} {prefix:.cyan}"
             )
-                .expect("is valid schema")
-                .with_key("slash", |_: &ProgressState, w: &mut dyn Write| write!(w, "/").expect("write should work here"))
-                .progress_chars("━ ━")
+            .expect("is valid schema")
+            .with_key("slash", |_: &ProgressState, w: &mut dyn Write| {
+                write!(w, "/").expect("write should work here")
+            })
+            .progress_chars("━ ━")
         )
         .with_message("Fetching Reports");
     progress.enable_steady_tick(Duration::from_secs(1));
@@ -177,7 +180,7 @@ async fn main() {
                 .collect::<Vec<String>>()
                 .join(", ")
         ),
-        true => println!("{}", console::style("Fetched all reports").magenta()),
+        true => println!("{}", console::style("Fetched all reports").magenta())
     }
 }
 
@@ -195,7 +198,7 @@ async fn fetch(water_right_no: WaterRightNo, client: &reqwest::Client) -> anyhow
     let pdf_bytes = client.get(&full_report_link).send().await?.bytes().await?;
     fs::write(
         format!("{}/rep{}.pdf", CONFIG.data.reports, water_right_no),
-        pdf_bytes,
+        pdf_bytes
     )?;
 
     Ok(())
@@ -212,11 +215,11 @@ fn sort_cadenza_table(a: &CadenzaTableRow, b: &CadenzaTableRow) -> Ordering {
     let prioritized_counties = vec!["Aurich", "Wittmund", "Friesland", "Leer"];
     let a_in_county = match a.county.as_deref() {
         Some(county) => prioritized_counties.contains(&county),
-        None => false,
+        None => false
     };
     let b_in_county = match b.county.as_deref() {
         Some(county) => prioritized_counties.contains(&county),
-        None => false,
+        None => false
     };
 
     // prioritize `E` legal departments, otherwise sort by water right no
@@ -225,7 +228,7 @@ fn sort_cadenza_table(a: &CadenzaTableRow, b: &CadenzaTableRow) -> Ordering {
         (false, true, _, _) => Ordering::Greater,
         (true, true, true, false) => Ordering::Less,
         (true, true, false, true) => Ordering::Greater,
-        _ => a.no.cmp(&b.no),
+        _ => a.no.cmp(&b.no)
     }
 }
 

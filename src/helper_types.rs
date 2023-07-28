@@ -1,6 +1,7 @@
+use std::cmp::Ordering;
+
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_with::{DeserializeAs, OneOrMany, Same};
-use std::cmp::Ordering;
 
 use crate::util::data_structs;
 
@@ -12,7 +13,7 @@ pub enum TimeDimension {
     Days(u64),
     Weeks(u64),
     Months(u64),
-    Years(u64),
+    Years(u64)
 }
 
 impl TimeDimension {
@@ -29,7 +30,7 @@ impl TimeDimension {
             Days(d) => *d * 24 * 60 * 60,
             Weeks(w) => *w * 7 * 24 * 60 * 60,
             Months(m) => *m * 30 * 24 * 60 * 60,
-            Years(y) => *y * 365 * 24 * 60 * 60,
+            Years(y) => *y * 365 * 24 * 60 * 60
         }
     }
 }
@@ -37,7 +38,7 @@ impl TimeDimension {
 impl Serialize for TimeDimension {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: Serializer,
+        S: Serializer
     {
         use TimeDimension::*;
 
@@ -61,7 +62,7 @@ impl Serialize for TimeDimension {
             Months(m) => format!("per{}Months", m),
 
             Years(1) => String::from("perYear"),
-            Years(y) => format!("per{}Years", y),
+            Years(y) => format!("per{}Years", y)
         };
 
         as_str.serialize(serializer)
@@ -71,7 +72,7 @@ impl Serialize for TimeDimension {
 impl<'de> Deserialize<'de> for TimeDimension {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: Deserializer<'de>,
+        D: Deserializer<'de>
     {
         use TimeDimension::*;
 
@@ -106,7 +107,7 @@ impl<'de> Deserialize<'de> for TimeDimension {
             _ => Err(serde::de::Error::custom(format!(
                 "could not parse {} as time dimension",
                 from_str
-            ))),
+            )))
         }
     }
 }
@@ -141,33 +142,33 @@ data_structs! {
 #[derive(Debug, Eq, PartialEq)]
 pub enum OptionalPair<T> {
     Single(T),
-    Pair(T, T),
+    Pair(T, T)
 }
 
 impl<T> Serialize for OptionalPair<T>
 where
-    T: Serialize,
+    T: Serialize
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: Serializer,
+        S: Serializer
     {
         use OptionalPair::*;
 
         match self {
             Single(v) => v.serialize(serializer),
-            Pair(a, b) => (a, b).serialize(serializer),
+            Pair(a, b) => (a, b).serialize(serializer)
         }
     }
 }
 
 impl<'de, T> Deserialize<'de> for OptionalPair<T>
 where
-    T: Deserialize<'de>,
+    T: Deserialize<'de>
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: Deserializer<'de>,
+        D: Deserializer<'de>
     {
         let items: Vec<T> = OneOrMany::<Same>::deserialize_as(deserializer)?;
         let mut items = items.into_iter();
@@ -179,7 +180,7 @@ where
             (None, _, _) => Err(serde::de::Error::custom("pair must not be empty")),
             (_, _, Some(_)) => Err(serde::de::Error::custom("pairs mut not exceed 2 elements")),
             (Some(v), None, _) => Ok(OptionalPair::Single(v)),
-            (Some(a), Some(b), _) => Ok(OptionalPair::Pair(a, b)),
+            (Some(a), Some(b), _) => Ok(OptionalPair::Pair(a, b))
         }
     }
 }
@@ -205,7 +206,7 @@ mod tests {
         TimeDimension::Months(1),
         TimeDimension::Months(TIME_DIMENSION_MULTI_VALUE),
         TimeDimension::Years(1),
-        TimeDimension::Years(TIME_DIMENSION_MULTI_VALUE),
+        TimeDimension::Years(TIME_DIMENSION_MULTI_VALUE)
     ];
     const TIME_DIMENSION_SER: &str = formatcp!(
         "[{:?},{:?},{:?},{:?},{:?},{:?},{:?},{:?},{:?},{:?},{:?},{:?},{:?},{:?}]",

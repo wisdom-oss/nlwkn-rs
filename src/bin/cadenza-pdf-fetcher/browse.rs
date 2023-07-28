@@ -1,11 +1,10 @@
-use crate::tor;
+use std::ffi::OsString;
+use std::ops::Deref;
+use std::time::Duration;
 
 use headless_chrome::{Browser, LaunchOptionsBuilder};
 
-use std::ffi::OsString;
-use std::ops::Deref;
-
-use std::time::Duration;
+use crate::tor;
 
 pub static CADENZA_URL: &str = crate::CONFIG.cadenza.url;
 pub static CADENZA_TIMEOUT: Duration = Duration::from_millis(crate::CONFIG.cadenza.timeout as u64);
@@ -55,7 +54,11 @@ pub fn fetch_water_right_report(water_right_no: u64) -> anyhow::Result<String> {
         .nth(1)
         .ok_or(anyhow::Error::msg("no session id found"))?;
 
-    let report_command = format!("{CADENZA_URL}commands.xhtml;jsessionid={session_id}?ShowLegacy.RepositoryItem.Id=FIS-W.WBE.wbe/wbe_net_wasserrecht.cwf&ShowLegacy.RepositoryItem.Value='{water_right_no}'&ShowLegacy.RepositoryItem.Attribute=wbe_net_wasserrecht.wasserrecht_nr");
+    let report_command = format!(
+        "{CADENZA_URL}commands.xhtml;jsessionid={session_id}?ShowLegacy.RepositoryItem.Id=FIS-W.\
+         WBE.wbe/wbe_net_wasserrecht.cwf&ShowLegacy.RepositoryItem.Value='{water_right_no}'&\
+         ShowLegacy.RepositoryItem.Attribute=wbe_net_wasserrecht.wasserrecht_nr"
+    );
     // dbg!(&report_command);
     tab.navigate_to(&report_command)?;
 

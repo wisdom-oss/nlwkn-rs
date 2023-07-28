@@ -1,6 +1,5 @@
 use arti_client::TorClient;
 use lazy_static::lazy_static;
-
 use tor_rtcompat::PreferredRuntime;
 
 lazy_static! {

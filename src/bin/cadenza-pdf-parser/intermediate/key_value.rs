@@ -9,7 +9,12 @@ impl From<TextBlockRepr> for KeyValueRepr {
 
         let mut entry: Option<(String, Vec<String>)> = None;
         for text_block in text_block_repr.0.into_iter() {
-            let TextBlock { content: Some(content), font_family: Some(font_family), .. } = text_block else {
+            let TextBlock {
+                content: Some(content),
+                font_family: Some(font_family),
+                ..
+            } = text_block
+            else {
                 continue;
             };
 
@@ -20,7 +25,7 @@ impl From<TextBlockRepr> for KeyValueRepr {
                     pairs.push(entry.take().expect("is some"));
                     entry = Some((content, Vec::new()))
                 }
-                _ => (),
+                _ => ()
             }
         }
 
