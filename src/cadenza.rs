@@ -1,9 +1,9 @@
-use anyhow::Result;
-use calamine::{RangeDeserializerBuilder, Reader, Xlsx};
-use nlwkn_rs::WaterRightNo;
-use serde::{Deserialize, Deserializer};
 use std::cmp::Ordering;
 use std::path::Path;
+use calamine::{RangeDeserializerBuilder, Reader};
+use serde::{Deserialize, Deserializer};
+use crate::WaterRightNo;
+use calamine::Xlsx;
 
 #[derive(Debug)]
 pub struct CadenzaTable(Vec<CadenzaTableRow>);
@@ -90,7 +90,7 @@ pub struct CadenzaTableRow {
 }
 
 impl CadenzaTable {
-    pub fn from_path(path: &Path) -> Result<CadenzaTable> {
+    pub fn from_path(path: &Path) -> anyhow::Result<CadenzaTable> {
         let mut workbook: Xlsx<_> = calamine::open_workbook(path)?;
         let worksheets = workbook.worksheets();
         let (_, range) = worksheets
@@ -108,24 +108,24 @@ impl CadenzaTable {
     }
 
     pub fn sort_by<F>(&mut self, compare: F)
-    where
-        F: FnMut(&CadenzaTableRow, &CadenzaTableRow) -> Ordering,
+        where
+            F: FnMut(&CadenzaTableRow, &CadenzaTableRow) -> Ordering,
     {
         let slice = self.0.as_mut_slice();
         slice.sort_by(compare);
     }
 
     pub fn dedup_by<F>(&mut self, same_bucket: F)
-    where
-        F: FnMut(&mut CadenzaTableRow, &mut CadenzaTableRow) -> bool,
+        where
+            F: FnMut(&mut CadenzaTableRow, &mut CadenzaTableRow) -> bool,
     {
         self.0.dedup_by(same_bucket);
     }
 }
 
 fn deserialize_date<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
-where
-    D: Deserializer<'de>,
+    where
+        D: Deserializer<'de>,
 {
     let float: calamine::DataType = calamine::DataType::deserialize(deserializer)?;
     Ok(Some(
@@ -137,8 +137,8 @@ where
 }
 
 fn zero_as_none<'de, D>(deserializer: D) -> Result<Option<i64>, D::Error>
-where
-    D: Deserializer<'de>,
+    where
+        D: Deserializer<'de>,
 {
     let option: Option<i64> = Option::deserialize(deserializer)?;
     match option {
@@ -150,7 +150,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::xlsx::{CadenzaTable, CadenzaTableRow};
+    use super::*;
     use std::path::Path;
 
     const XLSX_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/test/cadenza.xlsx");
@@ -182,8 +182,8 @@ mod tests {
                 .to_string()
                 .into(),
             legal_department:
-                "Entnahme von Wasser oder Entnahmen fester Stoffe aus oberirdischen Gewässern"
-                    .to_string(),
+            "Entnahme von Wasser oder Entnahmen fester Stoffe aus oberirdischen Gewässern"
+                .to_string(),
             legal_scope: "A70 Speisung von Teichen".to_string().into(),
             county: "Gifhorn".to_string().into(),
             rivershed: "Elbe/Labe".to_string().into(),

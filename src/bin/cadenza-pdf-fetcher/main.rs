@@ -1,5 +1,4 @@
 use crate::tor::start_socks_proxy;
-use crate::xlsx::{CadenzaTable, CadenzaTableRow};
 use clap::Parser;
 use console::Alignment;
 use indicatif::{ProgressBar, ProgressState, ProgressStyle};
@@ -13,10 +12,10 @@ use std::path::PathBuf;
 
 use std::fs;
 use std::time::Duration;
+use nlwkn_rs::cadenza::{CadenzaTable, CadenzaTableRow};
 
 mod browse;
 mod tor;
-mod xlsx;
 
 static_toml::static_toml! {
     static CONFIG = include_toml!("config.toml");

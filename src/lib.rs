@@ -9,6 +9,7 @@ use regex::Regex;
 use crate::util::data_structs;
 use helper_types::*;
 
+pub mod cadenza;
 pub mod cli;
 pub mod helper_types;
 mod util;
