@@ -4,9 +4,10 @@ use std::path::PathBuf;
 use clap::Parser;
 use lazy_static::lazy_static;
 use lopdf::Document;
+use nlwkn_rs::cadenza::CadenzaTable;
 use nlwkn_rs::{WaterRight, WaterRightNo};
 use regex::Regex;
-use nlwkn_rs::cadenza::CadenzaTable;
+
 use crate::parse::parse_document;
 
 mod intermediate;
@@ -62,14 +63,22 @@ fn main() {
         let mut water_right = WaterRight::new(water_right_no);
         parse_document(&mut water_right, document).unwrap();
 
-        if let Some(row) = cadenza_table.rows().iter().find(|row| row.no == water_right_no) {
-            water_right.bailee = water_right.bailee.or_else(|| row.bailee.clone())
+        if let Some(row) = cadenza_table
+            .rows()
+            .iter()
+            .find(|row| row.no == water_right_no)
+        {
+            water_right.bailee = water_right.bailee.or_else(|| row.bailee.clone());
             todo!() // TODO: more
         }
 
         for (_, department) in water_right.legal_departments.iter_mut() {
             for usage_location in department.usage_locations.iter_mut() {
-                if let Some(row) = cadenza_table.rows().iter().find(|row| row.no == water_right_no && usage_location.name.is_some() && row.usage_location == usage_location.name) {
+                if let Some(row) = cadenza_table.rows().iter().find(|row| {
+                    row.no == water_right_no &&
+                        usage_location.name.is_some() &&
+                        row.usage_location == usage_location.name
+                }) {
                     usage_location.no = Some(row.usage_location_no);
                 }
             }

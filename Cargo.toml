@@ -4,11 +4,6 @@ version = "0.1.0"
 edition = "2021"
 publish = false
 
-[features]
-head = []
-no-sandbox = []
-fetch = ["headless_chrome/fetch"]
-
 [[bin]]
 name = "cadenza-pdf-fetcher"
 
@@ -18,9 +13,6 @@ name = "cadenza-pdf-parser"
 [dependencies]
 # async runtime
 tokio = { version = "1", features = ["full"] }
-
-# headless browser
-headless_chrome = "1"
 
 # reading xlsx
 calamine = { version = "0.21", features = ["dates"] }

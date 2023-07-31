@@ -1,7 +1,7 @@
 [cadenza]
+root = "http://www.wasserdaten.niedersachsen.de"
 url = "http://www.wasserdaten.niedersachsen.de/cadenza/"
-timeout = 300000 # 5 minutes
-retries = 10
+retries = 2
 
 [data]
 reports = "data/reports"

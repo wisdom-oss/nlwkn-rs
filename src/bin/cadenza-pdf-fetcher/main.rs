@@ -11,10 +11,12 @@ use indicatif::{ProgressBar, ProgressState, ProgressStyle};
 use nlwkn_rs::cadenza::{CadenzaTable, CadenzaTableRow};
 use nlwkn_rs::cli::ProgressBarGuard;
 use nlwkn_rs::WaterRightNo;
+use reqwest::redirect::Policy;
 
 use crate::tor::start_socks_proxy;
 
-mod browse;
+// mod browse;
+mod req;
 mod tor;
 
 static_toml::static_toml! {
@@ -56,12 +58,13 @@ async fn main() {
             reqwest::Proxy::http(format!("socks5://localhost:{}", *tor::SOCKS_PORT).as_str())
                 .expect("proxy schema invalid")
         )
+        .redirect(Policy::none())
         .build()
         .expect("cannot build GET client");
 
     {
         let _pb = ProgressBarGuard::new_wait_spinner("Waiting for TOR proxy...");
-        while client.get(browse::CADENZA_URL).send().await.is_err() {
+        while client.get(CONFIG.cadenza.url).send().await.is_err() {
             tokio::time::sleep(Duration::from_secs(2)).await;
         }
     }
@@ -185,11 +188,12 @@ async fn main() {
 }
 
 async fn fetch(water_right_no: WaterRightNo, client: &reqwest::Client) -> anyhow::Result<()> {
-    let report_link = browse::fetch_water_right_report(water_right_no)?;
+    let report_link = req::fetch_report_url(water_right_no, client).await?;
+    // let report_link = browse::fetch_water_right_report(water_right_no)?;
 
     let full_report_link = format!(
         "{}{}",
-        browse::CADENZA_URL,
+        CONFIG.cadenza.url,
         report_link
             .split("/cadenza/")
             .nth(1)
