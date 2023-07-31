@@ -95,7 +95,7 @@ data_structs! {
     #[serde(rename_all = "camelCase")]
     struct UsageLocation {
         /// "Nutzungsort Nr."
-        no?: i64,
+        no?: u64,
 
         /// "Nutzungsort Lfd. Nr."
         serial_no?: String,
@@ -114,10 +114,10 @@ data_structs! {
 
         /// "Top. Karte 1:25.000"
         #[serde(rename = "topMap1:25000")]
-        top_map_1_25000?: (i64, String),
+        top_map_1_25000?: (u64, String),
 
         /// "Gemeindegebiet"
-        municipal_area?: (i64, String),
+        municipal_area?: (u64, String),
 
         /// "Landkreis"
         county?: String,
@@ -126,19 +126,19 @@ data_structs! {
         local_sub_district?: String,
 
         /// "Flur"
-        field?: i64,
+        field?: u64,
 
         /// "Flurstück"
         plot?: String,
 
         /// "Unterhaltungsverband"
-        maintenance_association?: (i64, String),
+        maintenance_association?: (u64, String),
 
         /// "EU-Bearbeitungsgebiet"
-        eu_survey_area?: (i64, String),
+        eu_survey_area?: (u64, String),
 
         /// "Einzugsgebietskennzahl"
-        basin_no?: (i64, String),
+        basin_no?: (u64, String),
 
         /// "Verordnungszitat"
         regulation_citation?: String,
@@ -189,10 +189,10 @@ data_structs! {
         solid?: Solids,
 
         /// "UTM-Rechtswert"
-        utm_easting?: i64,
+        utm_easting?: u64,
 
         /// "UTM-Hochwert"
-        utm_northing?: i64,
+        utm_northing?: u64,
     }
 
     /// pH values of the water.
