@@ -1,7 +1,7 @@
 [cadenza]
 root = "http://www.wasserdaten.niedersachsen.de"
 url = "http://www.wasserdaten.niedersachsen.de/cadenza/"
-retries = 2
+retries = 10
 
 [data]
 reports = "data/reports"

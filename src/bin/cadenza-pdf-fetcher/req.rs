@@ -41,21 +41,6 @@ pub async fn fetch_report_url(
             "command res has no session id in 'Location' header"
         ))?;
 
-    // let wait_xhtml_url = format!("{CADENZA_ROOT}{wait_xhtml_url}");
-    // let wait_xhtml_res = client
-    //     .get(wait_xhtml_url)
-    //     .header("User-Agent", USER_AGENT)
-    //     .send()
-    //     .await?;
-    // match wait_xhtml_res.status().as_u16() {
-    //     200 => (),
-    //     code => {
-    //         return Err(anyhow::Error::msg(format!(
-    //             "wait xhtml responded with {code}, expected 200"
-    //         )))
-    //     }
-    // }
-
     let wait_cweb_url = format!("{CADENZA_URL}wait.cweb;jsessionid={j_session_id}");
     let wait_cweb_res = client
         .get(wait_cweb_url)
