@@ -2,6 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use clap::Parser;
+use indicatif::ProgressBar;
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use lopdf::Document;
@@ -18,6 +19,7 @@ mod util;
 
 lazy_static! {
     static ref REPORT_FILE_RE: Regex = Regex::new(r"^rep(?<no>\d+).pdf$").expect("valid regex");
+    static ref PROGRESS: ProgressBar = ProgressBar::new_spinner();
 }
 
 /// NLWKN Water Right Webcrawler

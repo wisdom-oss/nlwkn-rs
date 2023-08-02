@@ -6,10 +6,10 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use clap::Parser;
-use console::Alignment;
+use console::{Alignment, Color};
 use indicatif::{ProgressBar, ProgressState, ProgressStyle};
 use nlwkn_rs::cadenza::{CadenzaTable, CadenzaTableRow};
-use nlwkn_rs::cli::ProgressBarGuard;
+use nlwkn_rs::cli::{progress_message, ProgressBarGuard, PRINT_PADDING};
 use nlwkn_rs::WaterRightNo;
 use reqwest::redirect::Policy;
 
@@ -22,8 +22,6 @@ mod tor;
 static_toml::static_toml! {
     static CONFIG = include_toml!("config.toml");
 }
-
-const PRINT_PADDING: usize = 9;
 
 /// NLWKN Water Right Webcrawler
 #[derive(Debug, Parser)]
@@ -81,32 +79,18 @@ async fn main() {
     let mut unfetched_reports = Vec::new();
 
     let progress = ProgressBar::new(cadenza_table.rows().len() as u64)
-        .with_style(
-            ProgressStyle::with_template(
-                "{msg:.cyan}  {wide_bar:.magenta/.234}  \
-                 {human_pos:.magenta}{slash:.magenta}{human_len:.magenta} {prefix:.cyan}"
-            )
-            .expect("is valid schema")
-            .with_key("slash", |_: &ProgressState, w: &mut dyn Write| {
-                write!(w, "/").expect("write should work here")
-            })
-            .progress_chars("━ ━")
-        )
+        .with_style(nlwkn_rs::cli::PROGRESS_STYLE.clone())
         .with_message("Fetching Reports");
     progress.enable_steady_tick(Duration::from_secs(1));
 
     'wr_loop: for water_right_no in cadenza_table.rows().iter().map(|row| row.no) {
         if fetched_reports.contains(&water_right_no) {
-            progress.println(format!(
-                "{} {}, already fetched",
-                console::pad_str(
-                    console::style("Skipped").green().to_string().as_str(),
-                    PRINT_PADDING,
-                    Alignment::Right,
-                    None,
-                ),
-                water_right_no
-            ));
+            progress_message(
+                &progress,
+                "Skipped",
+                Color::Green,
+                format!("{water_right_no}, already fetched")
+            );
             progress.inc(1);
             continue;
         }
@@ -118,32 +102,19 @@ async fn main() {
             let fetched = fetch(water_right_no, &client).await;
             match fetched {
                 Ok(_) => {
-                    progress.println(format!(
-                        "{} {}",
-                        console::pad_str(
-                            console::style("Fetched").green().to_string().as_str(),
-                            PRINT_PADDING,
-                            Alignment::Right,
-                            None,
-                        ),
-                        water_right_no
-                    ));
+                    progress_message(&progress, "Fetched", Color::Green, water_right_no);
                     progress.inc(1);
                     fetched_reports.insert(water_right_no);
                     continue 'wr_loop;
                 }
 
                 Err(err) => {
-                    progress.println(format!(
-                        "{} failed to fetch, {}",
-                        console::pad_str(
-                            console::style("Error").red().to_string().as_str(),
-                            PRINT_PADDING,
-                            Alignment::Right,
-                            None,
-                        ),
-                        err
-                    ));
+                    progress_message(
+                        &progress,
+                        "Error",
+                        Color::Red,
+                        format!("failed to fetch, {err}")
+                    );
 
                     // use quadratic backoff for wait until retry
                     let wait = 2u64.pow(retry);
@@ -157,15 +128,12 @@ async fn main() {
         }
 
         unfetched_reports.push(water_right_no);
-        progress.println(format!(
-            "{} exceeded amount of retries, will skip {water_right_no}",
-            console::pad_str(
-                console::style("Warning").yellow().to_string().as_str(),
-                PRINT_PADDING,
-                Alignment::Right,
-                None,
-            )
-        ));
+        progress_message(
+            &progress,
+            "Warning",
+            Color::Yellow,
+            format!("exceeded amount of retries, will skip {water_right_no}")
+        );
         progress.inc(1);
     }
 
@@ -182,7 +150,6 @@ async fn main() {
 
 async fn fetch(water_right_no: WaterRightNo, client: &reqwest::Client) -> anyhow::Result<()> {
     let report_link = req::fetch_report_url(water_right_no, client).await?;
-    // let report_link = browse::fetch_water_right_report(water_right_no)?;
 
     let full_report_link = format!(
         "{}{}",
