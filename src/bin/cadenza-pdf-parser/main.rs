@@ -8,9 +8,9 @@ use itertools::Itertools;
 use lazy_static::lazy_static;
 use lopdf::Document;
 use nlwkn_rs::cadenza::CadenzaTable;
+use nlwkn_rs::cli::{progress_message, PROGRESS_STYLE, PROGRESS_UPDATE_INTERVAL, SPINNER_STYLE};
 use nlwkn_rs::{WaterRight, WaterRightNo};
 use regex::Regex;
-use nlwkn_rs::cli::{SPINNER_STYLE, PROGRESS_UPDATE_INTERVAL, PROGRESS_STYLE, progress_message};
 
 use crate::parse::parse_document;
 use crate::util::OptionUpdate;
@@ -130,7 +130,11 @@ fn main() {
         path.push("reports.json");
         path
     };
-    fs::write(reports_json_path, serde_json::to_string_pretty(&water_rights).unwrap()).unwrap();
+    fs::write(
+        reports_json_path,
+        serde_json::to_string_pretty(&water_rights).unwrap()
+    )
+    .unwrap();
 
     PROGRESS.finish_and_clear();
 }
@@ -172,9 +176,19 @@ fn load_reports(report_dir: impl AsRef<Path>) -> anyhow::Result<(Reports, Broken
         PROGRESS.inc(1);
     }
 
-    progress_message(&PROGRESS, "Loaded", Color::Green, format!("{} reports correctly", reports.len()));
+    progress_message(
+        &PROGRESS,
+        "Loaded",
+        Color::Green,
+        format!("{} reports correctly", reports.len())
+    );
     if !broken_reports.is_empty() {
-        progress_message(&PROGRESS, "Warning", Color::Yellow, format!("could not load {} reports", broken_reports.len()));
+        progress_message(
+            &PROGRESS,
+            "Warning",
+            Color::Yellow,
+            format!("could not load {} reports", broken_reports.len())
+        );
     }
 
     Ok((reports, broken_reports))
