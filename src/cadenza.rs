@@ -41,7 +41,7 @@ pub struct CadenzaTableRow {
     #[serde(rename = "Erteilende Behoerde")]
     pub granting_authority: Option<String>,
 
-    #[serde(rename = "Aenderungsdatum")]
+    #[serde(rename = "Aenderungsdatum", deserialize_with = "deserialize_date", default)]
     pub date_of_change: Option<String>,
 
     #[serde(rename = "Aktenzeichen")]
