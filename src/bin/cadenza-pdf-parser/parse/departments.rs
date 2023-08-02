@@ -119,15 +119,12 @@ fn parse_usage_location(
                         let (time_dim, dim_num) = nlwkn_rs::rate_entry_from_str(value, unit)?;
                         usage_location.withdrawal_rate.insert(time_dim, dim_num);
                     }
-                    _ => todo!()
+                    a => return Err(anyhow::Error::msg(format!("unknown allow value: {a:?}")))
                 }
             }
 
             (key, first, second) => {
-                panic!(
-                    "invalid entry for the root:\nkey: {key:?}\nfirst: {first:?}\nsecond: \
-                     {second:?}"
-                );
+                return Err(anyhow::Error::msg(format!("invalid entry for the usage location, key: {key:?}, first: {first:?}, second: {second:?}")));
             }
         }
     }

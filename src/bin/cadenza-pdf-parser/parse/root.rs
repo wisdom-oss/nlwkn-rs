@@ -23,7 +23,7 @@ pub fn parse_root(items: Vec<KeyValuePair>, water_right: &mut WaterRight) -> any
             ("und betrifft Rechtsabteilungen", _) => (),
             ("Betreff:", v) => water_right.subject = v,
             (key, value) => {
-                panic!("invalid entry for the root:\nkey: {key:?}\nvalue: {value:?}");
+                return Err(anyhow::Error::msg(format!("invalid entry for the root, key: {key:?}, value: {value:?}")));
             }
         }
     }
