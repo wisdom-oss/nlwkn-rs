@@ -14,6 +14,8 @@ pub fn parse_root(items: Vec<KeyValuePair>, water_right: &mut WaterRight) -> any
             }
             ("erteilt durch /", _) => (),
             ("eingetragen durch:", v) => water_right.registering_authority = v,
+            ("abweichend", _) => (),
+            ("erteilt durch:", v) => water_right.granting_authority = v,
             ("erteilt am:", v) => water_right.valid_from = v,
             ("erstmalig ertellt am:", v) => water_right.first_grant = v,
             ("Aktenzeichen:", v) => water_right.file_reference = v,
