@@ -7,7 +7,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 use lazy_static::lazy_static;
 
 pub const PRINT_PADDING: usize = 9;
-const SPINNER_INTERVAL: Duration = Duration::from_millis(100);
+pub const PROGRESS_UPDATE_INTERVAL: Duration = Duration::from_millis(100);
 
 lazy_static! {
     pub static ref SPINNER_STYLE: ProgressStyle =
@@ -64,7 +64,7 @@ impl ProgressBarGuard {
     pub fn new_wait_spinner(msg: impl Into<Cow<'static, str>>) -> Self {
         let spinner =
             ProgressBar::new_spinner().with_message(msg).with_style(SPINNER_STYLE.clone());
-        spinner.enable_steady_tick(SPINNER_INTERVAL);
+        spinner.enable_steady_tick(PROGRESS_UPDATE_INTERVAL);
         Self::new(spinner, None)
     }
 }

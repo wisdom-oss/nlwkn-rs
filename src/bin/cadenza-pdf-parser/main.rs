@@ -2,6 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use clap::Parser;
+use console::Color;
 use indicatif::ProgressBar;
 use itertools::Itertools;
 use lazy_static::lazy_static;
@@ -9,6 +10,7 @@ use lopdf::Document;
 use nlwkn_rs::cadenza::CadenzaTable;
 use nlwkn_rs::{WaterRight, WaterRightNo};
 use regex::Regex;
+use nlwkn_rs::cli::{SPINNER_STYLE, PROGRESS_UPDATE_INTERVAL, PROGRESS_STYLE, progress_message};
 
 use crate::parse::parse_document;
 use crate::util::OptionUpdate;
@@ -46,18 +48,24 @@ fn main() {
         path_buf
     };
 
-    let (reports, broken_reports) = load_reports(report_dir).unwrap();
-    if !broken_reports.is_empty() {
-        eprintln!("found {} broken reports", broken_reports.len());
-    }
+    PROGRESS.set_style(SPINNER_STYLE.clone());
+    PROGRESS.enable_steady_tick(PROGRESS_UPDATE_INTERVAL);
 
+    let (reports, _broken_reports) = load_reports(report_dir).unwrap();
+
+    PROGRESS.set_style(SPINNER_STYLE.clone());
+    PROGRESS.set_message("Parsing table...");
     let cadenza_table = CadenzaTable::from_path(&xlsx_path).unwrap();
     let mut water_rights = Vec::with_capacity(cadenza_table.rows().capacity());
 
+    PROGRESS.set_style(PROGRESS_STYLE.clone());
+    PROGRESS.set_message("Parsing Reports");
+    PROGRESS.set_length(reports.len() as u64);
+    PROGRESS.set_position(0);
     // TODO: remove this lint annotation
     #[allow(clippy::never_loop)]
     for (water_right_no, document) in reports {
-        eprintln!("{water_right_no}");
+        PROGRESS.set_prefix(water_right_no.to_string());
         let mut water_right = WaterRight::new(water_right_no);
         parse_document(&mut water_right, document).unwrap();
 
@@ -111,22 +119,36 @@ fn main() {
         // TODO: normalize dates
 
         water_rights.push(water_right);
+        PROGRESS.inc(1);
         break;
     }
 
-    println!("{}", serde_json::to_string(&water_rights).unwrap());
+    PROGRESS.set_style(SPINNER_STYLE.clone());
+    PROGRESS.set_message("Saving parsed reports...");
+    let reports_json_path = {
+        let mut path = data_path.clone();
+        path.push("reports.json");
+        path
+    };
+    fs::write(reports_json_path, serde_json::to_string_pretty(&water_rights).unwrap()).unwrap();
+
+    PROGRESS.finish_and_clear();
 }
 
 type Reports = Vec<(WaterRightNo, Document)>;
 type BrokenReports = Vec<(WaterRightNo, lopdf::Error)>;
 fn load_reports(report_dir: impl AsRef<Path>) -> anyhow::Result<(Reports, BrokenReports)> {
+    PROGRESS.set_message("Counting reports...");
+    let entry_count = fs::read_dir(&report_dir)?.count();
     let read_dir = fs::read_dir(report_dir)?;
 
-    let size_hint = read_dir.size_hint();
-    let size_hint = size_hint.1.unwrap_or(size_hint.0);
+    PROGRESS.set_message("Loading Reports");
+    PROGRESS.set_length(entry_count as u64);
+    PROGRESS.set_position(0);
+    PROGRESS.set_style(PROGRESS_STYLE.clone());
 
-    let mut reports = Vec::with_capacity(size_hint);
-    let mut broken_reports = Vec::with_capacity(size_hint);
+    let mut reports = Vec::with_capacity(entry_count);
+    let mut broken_reports = Vec::with_capacity(entry_count);
 
     for dir_entry in read_dir {
         let dir_entry = dir_entry?;
@@ -140,10 +162,19 @@ fn load_reports(report_dir: impl AsRef<Path>) -> anyhow::Result<(Reports, Broken
         };
         let water_right_no: WaterRightNo = captured["no"].parse()?;
 
+        PROGRESS.set_prefix(water_right_no.to_string());
+
         match Document::load(dir_entry.path()) {
             Ok(document) => reports.push((water_right_no, document)),
             Err(err) => broken_reports.push((water_right_no, err))
         }
+
+        PROGRESS.inc(1);
+    }
+
+    progress_message(&PROGRESS, "Loaded", Color::Green, format!("{} reports correctly", reports.len()));
+    if !broken_reports.is_empty() {
+        progress_message(&PROGRESS, "Warning", Color::Yellow, format!("could not load {} reports", broken_reports.len()));
     }
 
     Ok((reports, broken_reports))
