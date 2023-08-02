@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
+use serde_with::skip_serializing_none;
 
 use helper_types::*;
 use lazy_static::lazy_static;
@@ -21,6 +22,7 @@ data_structs! {
     /// Data type describing a single water right.
     /// Projected from the cadenza table.
     #[serde(rename_all = "camelCase")]
+    #[skip_serializing_none]
     struct WaterRight {
         /// "Wasserrecht Nr."
         no: WaterRightNo,
@@ -93,6 +95,7 @@ data_structs! {
 
     /// A single water right may have multiple usage locations.
     #[serde(rename_all = "camelCase")]
+    #[skip_serializing_none]
     struct UsageLocation {
         /// "Nutzungsort Nr."
         no?: u64,
@@ -143,6 +146,7 @@ data_structs! {
         /// "Verordnungszitat"
         regulation_citation?: String,
 
+        // TODO: simplify this with Vec<(Amount, Unit, Time)>
         /// "Entnahmemenge"
         withdrawal_rate: RateRecord,
 
@@ -196,12 +200,14 @@ data_structs! {
     }
 
     /// pH values of the water.
+    #[skip_serializing_none]
     struct PHValues {
         min?: u64,
         max?: u64,
     }
 
     /// Targets the dam should be at.
+    #[skip_serializing_none]
     struct DamTargets {
         default?: DimensionedNumber,
 
@@ -213,6 +219,7 @@ data_structs! {
     }
 
     #[serde(rename_all = "camelCase")]
+    #[skip_serializing_none]
     struct Solids {
         /// "Abfiltrierbare Stoffe"
         filterable?: DescriptiveNumber,
