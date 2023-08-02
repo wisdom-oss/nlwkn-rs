@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use lazy_static::lazy_static;
 use nlwkn_rs::helper_types::OptionalPair;
 use nlwkn_rs::{LegalDepartment, LegalDepartmentAbbreviation, UsageLocation, WaterRight};
@@ -74,8 +75,9 @@ fn parse_usage_location(
                 usage_location.real = Some(&captured["real"] == "real");
             }
             ("Bezeichnung:", v, _) => usage_location.name = v,
-            ("Rechtszweck:", v, _) => {
-                usage_location.legal_scope = v.map(|v| OptionalPair::Single(v))
+            ("Rechtszweck:", Some(v), _) => {
+                usage_location.legal_scope =
+                    v.splitn(2, " ").map(ToString::to_string).collect_tuple()
             }
             ("East und North:", Some(v), _) => usage_location.utm_northing = Some(v.parse()?),
             ("Top. Karte 1:25.000:", Some(num), Some(s)) => {
