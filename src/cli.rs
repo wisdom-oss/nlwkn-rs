@@ -1,10 +1,9 @@
 use std::borrow::Cow;
 use std::fmt::Display;
-use std::io::Write;
 use std::time::Duration;
 
 use console::Alignment;
-use indicatif::{ProgressBar, ProgressState, ProgressStyle};
+use indicatif::{ProgressBar, ProgressStyle};
 use lazy_static::lazy_static;
 
 pub const PRINT_PADDING: usize = 9;

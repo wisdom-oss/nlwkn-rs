@@ -1,13 +1,12 @@
 use std::cmp::Ordering;
 use std::collections::BTreeSet;
-use std::fmt::Write;
 use std::fs;
 use std::path::PathBuf;
 use std::time::Duration;
 
 use clap::Parser;
 use console::{Alignment, Color};
-use indicatif::{ProgressBar, ProgressState, ProgressStyle};
+use indicatif::ProgressBar;
 use nlwkn_rs::cadenza::{CadenzaTable, CadenzaTableRow};
 use nlwkn_rs::cli::{progress_message, ProgressBarGuard, PRINT_PADDING};
 use nlwkn_rs::WaterRightNo;
