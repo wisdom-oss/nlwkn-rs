@@ -1,6 +1,5 @@
 use itertools::Itertools;
 use lazy_static::lazy_static;
-use nlwkn_rs::helper_types::OptionalPair;
 use nlwkn_rs::{LegalDepartment, LegalDepartmentAbbreviation, UsageLocation, WaterRight};
 use regex::Regex;
 
@@ -11,7 +10,7 @@ pub fn parse_departments(
     water_right: &mut WaterRight
 ) -> anyhow::Result<()> {
     for (department_text, usage_locations) in items {
-        let mut department_text_split = department_text.splitn(3, " ");
+        let mut department_text_split = department_text.splitn(3, ' ');
         let abbreviation: LegalDepartmentAbbreviation = department_text_split
             .next()
             .ok_or(anyhow::Error::msg("department is missing abbreviation"))?
@@ -77,7 +76,7 @@ fn parse_usage_location(
             ("Bezeichnung:", v, _) => usage_location.name = v,
             ("Rechtszweck:", Some(v), _) => {
                 usage_location.legal_scope =
-                    v.splitn(2, " ").map(ToString::to_string).collect_tuple()
+                    v.splitn(2, ' ').map(ToString::to_string).collect_tuple()
             }
             ("East und North:", Some(v), _) => usage_location.utm_easting = Some(v.parse()?),
             ("Top. Karte 1:25.000:", Some(num), Some(s)) => {
@@ -109,7 +108,7 @@ fn parse_usage_location(
             }
             ("Verordnungszitat:", v, _) => usage_location.regulation_citation = v,
             ("Erlaubniswert:", Some(v), _) => {
-                let mut split = v.rsplitn(3, " ");
+                let mut split = v.rsplitn(3, ' ');
                 let unit = split.next().ok_or(anyhow::Error::msg("'Erlaubniswert' has no unit"))?;
                 let value =
                     split.next().ok_or(anyhow::Error::msg("'Erlaubniswert' has no value"))?;

@@ -1,4 +1,3 @@
-use clap::command;
 use nlwkn_rs::WaterRightNo;
 
 static CADENZA_ROOT: &str = crate::CONFIG.cadenza.root;

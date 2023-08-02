@@ -8,13 +8,13 @@ pub trait OptionUpdate<T: Clone> {
 
 impl<T: Clone> OptionUpdate<T> for Option<T> {
     fn update_if_none(&mut self, other: Option<T>) {
-        if let None = &self {
+        if self.is_none() {
             *self = other;
         }
     }
 
     fn update_if_none_clone(&mut self, other: Option<&T>) {
-        if let None = self {
+        if self.is_none() {
             *self = other.cloned();
         }
     }
@@ -23,7 +23,7 @@ impl<T: Clone> OptionUpdate<T> for Option<T> {
     where
         F: FnOnce() -> Option<T>
     {
-        if let None = self {
+        if self.is_none() {
             *self = other();
         }
     }

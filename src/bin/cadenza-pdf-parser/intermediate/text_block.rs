@@ -56,7 +56,7 @@ impl TryFrom<lopdf::Document> for TextBlockRepr {
 }
 
 #[inline]
-fn handle_tm(text_block: &mut TextBlock, operands: &Vec<Object>) -> anyhow::Result<()> {
+fn handle_tm(text_block: &mut TextBlock, operands: &[Object]) -> anyhow::Result<()> {
     // only take the first x and y coordinates
     if text_block.x.is_some() || text_block.y.is_some() {
         return Ok(());
@@ -86,10 +86,10 @@ fn handle_tm(text_block: &mut TextBlock, operands: &Vec<Object>) -> anyhow::Resu
 }
 
 #[inline]
-fn handle_tf(text_block: &mut TextBlock, operands: &Vec<Object>) {
+fn handle_tf(text_block: &mut TextBlock, operands: &[Object]) {
     // take only the first font configuration
     if text_block.font_family.is_some() || text_block.font_size.is_some() {
-        return ();
+        return;
     }
 
     text_block.font_family = match operands.get(0) {
@@ -120,10 +120,10 @@ fn handle_tf(text_block: &mut TextBlock, operands: &Vec<Object>) {
 }
 
 #[inline]
-fn handle_rg(text_block: &mut TextBlock, operands: &Vec<Object>) {
+fn handle_rg(text_block: &mut TextBlock, operands: &[Object]) {
     // take only the first fill color
     if text_block.fill_color.is_some() {
-        return ();
+        return;
     }
 
     let r = match operands.get(0) {
@@ -162,7 +162,7 @@ fn handle_rg(text_block: &mut TextBlock, operands: &Vec<Object>) {
 }
 
 #[inline]
-fn handle_tj(text_block: &mut TextBlock, operands: &Vec<Object>) {
+fn handle_tj(text_block: &mut TextBlock, operands: &[Object]) {
     let mut content = String::new();
 
     for operand in operands {

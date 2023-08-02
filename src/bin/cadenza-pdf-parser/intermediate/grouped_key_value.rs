@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::iter::Peekable;
 
 use crate::intermediate::key_value::{KeyValuePair, KeyValueRepr};

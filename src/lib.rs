@@ -2,12 +2,12 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
-use serde_with::skip_serializing_none;
 
 use helper_types::*;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
 
 use crate::util::data_structs;
 
@@ -96,6 +96,7 @@ data_structs! {
     /// A single water right may have multiple usage locations.
     #[serde(rename_all = "camelCase")]
     #[skip_serializing_none]
+    #[derive(Default)]
     struct UsageLocation {
         /// "Nutzungsort Nr."
         no?: u64,

@@ -1,9 +1,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::io::Write;
 
 use clap::Parser;
-use itertools::{any, Itertools};
+use itertools::Itertools;
 use lazy_static::lazy_static;
 use lopdf::Document;
 use nlwkn_rs::cadenza::CadenzaTable;
@@ -53,6 +52,8 @@ fn main() {
     let cadenza_table = CadenzaTable::from_path(&xlsx_path).unwrap();
     let mut water_rights = Vec::with_capacity(cadenza_table.rows().capacity());
 
+    // TODO: remove this lint annotation
+    #[allow(clippy::never_loop)]
     for (water_right_no, document) in reports {
         eprintln!("{water_right_no}");
         let mut water_right = WaterRight::new(water_right_no);
@@ -76,8 +77,7 @@ fn main() {
         for usage_location in water_right
             .legal_departments
             .iter_mut()
-            .map(|(_, department)| department.usage_locations.iter_mut())
-            .flatten()
+            .flat_map(|(_, department)| department.usage_locations.iter_mut())
         {
             let Some(row) = cadenza_table.rows().iter().find(|row| {
                 row.no == water_right_no &&
@@ -92,7 +92,7 @@ fn main() {
             ul.no.update_if_none(Some(row.usage_location_no));
             ul.legal_scope.update_if_none_with(|| {
                 row.legal_scope.as_ref().and_then(|ls| {
-                    ls.splitn(2, " ").map(ToString::to_string).collect_tuple::<(String, String)>()
+                    ls.splitn(2, ' ').map(ToString::to_string).collect_tuple::<(String, String)>()
                 })
             });
             ul.county.update_if_none_clone(row.county.as_ref());
@@ -118,7 +118,7 @@ fn main() {
 type Reports = Vec<(WaterRightNo, Document)>;
 type BrokenReports = Vec<(WaterRightNo, lopdf::Error)>;
 fn load_reports(report_dir: impl AsRef<Path>) -> anyhow::Result<(Reports, BrokenReports)> {
-    let read_dir = fs::read_dir(report_dir)?.into_iter();
+    let read_dir = fs::read_dir(report_dir)?;
 
     let size_hint = read_dir.size_hint();
     let size_hint = size_hint.1.unwrap_or(size_hint.0);
@@ -131,7 +131,8 @@ fn load_reports(report_dir: impl AsRef<Path>) -> anyhow::Result<(Reports, Broken
 
         let file_name = dir_entry.file_name();
         let file_name = file_name.to_string_lossy();
-        let Some(captured) = REPORT_FILE_RE.captures(file_name.as_ref()) else {
+        let Some(captured) = REPORT_FILE_RE.captures(file_name.as_ref())
+        else {
             // file is not a fetched pdf file
             continue;
         };
