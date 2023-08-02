@@ -110,7 +110,7 @@ data_structs! {
         name?: String,
 
         /// "Rechtszweck"
-        legal_scope?: OptionalPair<String>,
+        legal_scope?: (String, String),
 
         /// "Top. Karte 1:25.000"
         #[serde(rename = "topMap1:25000")]
