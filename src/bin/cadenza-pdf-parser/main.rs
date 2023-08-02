@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::ExitCode;
 
 use clap::Parser;
 use console::Color;
@@ -36,7 +37,7 @@ struct Args {
     data_path: PathBuf
 }
 
-fn main() {
+fn main() -> ExitCode {
     let Args {
         xlsx_path,
         data_path
@@ -51,11 +52,35 @@ fn main() {
     PROGRESS.set_style(SPINNER_STYLE.clone());
     PROGRESS.enable_steady_tick(PROGRESS_UPDATE_INTERVAL);
 
-    let (reports, _broken_reports) = load_reports(report_dir).unwrap();
+    let (reports, _broken_reports) = match load_reports(report_dir) {
+        Ok(reports) => reports,
+        Err(e) => {
+            progress_message(
+                &PROGRESS,
+                "Error",
+                Color::Red,
+                format!("could not load reports, {e}")
+            );
+            PROGRESS.finish_and_clear();
+            return ExitCode::FAILURE;
+        }
+    };
 
     PROGRESS.set_style(SPINNER_STYLE.clone());
     PROGRESS.set_message("Parsing table...");
-    let cadenza_table = CadenzaTable::from_path(&xlsx_path).unwrap();
+    let cadenza_table = match CadenzaTable::from_path(&xlsx_path) {
+        Ok(table) => table,
+        Err(e) => {
+            progress_message(
+                &PROGRESS,
+                "Error",
+                Color::Red,
+                format!("could not parse table, {e}")
+            );
+            PROGRESS.finish_and_clear();
+            return ExitCode::FAILURE;
+        }
+    };
     let mut water_rights = Vec::with_capacity(cadenza_table.rows().capacity());
 
     PROGRESS.set_style(PROGRESS_STYLE.clone());
@@ -67,7 +92,15 @@ fn main() {
     for (water_right_no, document) in reports {
         PROGRESS.set_prefix(water_right_no.to_string());
         let mut water_right = WaterRight::new(water_right_no);
-        parse_document(&mut water_right, document).unwrap();
+        if let Err(e) = parse_document(&mut water_right, document) {
+            progress_message(
+                &PROGRESS,
+                "Error",
+                Color::Red,
+                format!("could not parse report for {water_right_no}, {e}, will abort now")
+            );
+            break;
+        }
 
         for row in cadenza_table.rows().iter().filter(|row| row.no == water_right_no) {
             let wr = &mut water_right;
@@ -130,13 +163,38 @@ fn main() {
         path.push("reports.json");
         path
     };
-    fs::write(
-        reports_json_path,
-        serde_json::to_string_pretty(&water_rights).unwrap()
-    )
-    .unwrap();
+
+    #[cfg(debug_assertions)]
+    let reports_json = serde_json::to_string_pretty(&water_rights);
+    #[cfg(not(debug_assertions))]
+    let reports_json = serde_json::to_string(&water_rights);
+    let reports_json = match reports_json {
+        Ok(json) => json,
+        Err(e) => {
+            progress_message(
+                &PROGRESS,
+                "Error",
+                Color::Red,
+                format!("could not serialize water rights to json, {e}")
+            );
+            PROGRESS.finish_and_clear();
+            return ExitCode::FAILURE;
+        }
+    };
+
+    if let Err(e) = fs::write(reports_json_path, reports_json) {
+        progress_message(
+            &PROGRESS,
+            "Error",
+            Color::Red,
+            format!("could not write reports json, {e}")
+        );
+        PROGRESS.finish_and_clear();
+        return ExitCode::FAILURE;
+    }
 
     PROGRESS.finish_and_clear();
+    ExitCode::SUCCESS
 }
 
 type Reports = Vec<(WaterRightNo, Document)>;
@@ -161,7 +219,12 @@ fn load_reports(report_dir: impl AsRef<Path>) -> anyhow::Result<(Reports, Broken
         let file_name = file_name.to_string_lossy();
         let Some(captured) = REPORT_FILE_RE.captures(file_name.as_ref())
         else {
-            // file is not a fetched pdf file
+            progress_message(
+                &PROGRESS,
+                "Warning",
+                Color::Yellow,
+                format!("could not extract water right number from {file_name:?}, will be ignored")
+            );
             continue;
         };
         let water_right_no: WaterRightNo = captured["no"].parse()?;
