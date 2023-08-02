@@ -145,28 +145,3 @@ fn load_reports(report_dir: impl AsRef<Path>) -> anyhow::Result<(Reports, Broken
 
     Ok((reports, broken_reports))
 }
-
-// fn main() -> anyhow::Result<()> {
-//     let document = lopdf::Document::load(
-//         env::args()
-//             .nth(1)
-//             .ok_or(anyhow::Error::msg("no argument passed"))?
-//     )?;
-//     let text_block_repr = TextBlockRepr::try_from(document.clone())?;
-//     let key_value_repr = KeyValueRepr::from(text_block_repr);
-//
-//     for (key, values) in key_value_repr.0.iter() {
-//         print!("{}: ", console::style(key).magenta());
-//         for value in values {
-//             print!("{}, ", console::style(value).cyan());
-//         }
-//         println!()
-//     }
-//
-//
-//
-//     let water_right = parse::parse_document(287209, document)?;
-//     dbg!(water_right);
-//
-//     Ok(())
-// }
