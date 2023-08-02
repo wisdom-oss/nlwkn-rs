@@ -393,8 +393,14 @@ pub fn rate_entry_from_str(
     let unit = unit_capture["measurement"].to_string();
     let factor: u64 = unit_capture["factor"].parse().unwrap_or(1);
     let time = match &unit_capture["time"] {
+        "s" => TimeDimension::Seconds(factor),
+        "m" => TimeDimension::Minutes(factor),
+        "h" => TimeDimension::Hours(factor),
+        "d" => TimeDimension::Days(factor),
+        "w" => TimeDimension::Weeks(factor),
+        "M" => TimeDimension::Months(factor),
         "a" => TimeDimension::Years(factor),
-        _ => todo!()
+        unit => panic!("{unit} is a unknown time dimension")
     };
 
     Ok((time, DimensionedNumber { value, unit }))
