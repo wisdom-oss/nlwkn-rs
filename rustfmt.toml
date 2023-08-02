@@ -12,3 +12,4 @@ group_imports = "StdExternalCrate"
 trailing_comma = "Never"
 use_field_init_shorthand = true
 wrap_comments = true
+chain_width = 100
