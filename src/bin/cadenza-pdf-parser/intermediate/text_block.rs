@@ -23,10 +23,8 @@ impl TryFrom<lopdf::Document> for TextBlockRepr {
         let mut text_blocks = Vec::new();
         let mut text_block: Option<TextBlock> = None;
         for page_object_id in document.page_iter() {
-            for Operation { operator, operands } in document
-                .get_and_decode_page_content(page_object_id)?
-                .operations
-                .iter()
+            for Operation { operator, operands } in
+                document.get_and_decode_page_content(page_object_id)?.operations.iter()
             {
                 match (operator.as_str(), text_block.as_mut()) {
                     // expected states

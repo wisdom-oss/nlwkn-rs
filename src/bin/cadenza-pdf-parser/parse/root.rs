@@ -9,9 +9,7 @@ pub fn parse_root(items: Vec<KeyValuePair>, water_right: &mut WaterRight) -> any
             ("Wasserbuchbehörde", v) => water_right.water_authority = v,
             ("Kennziffer", Some(v)) => {
                 let mut split = v.rsplitn(2, " ");
-                water_right.state = split
-                    .next()
-                    .map(|state| state[1..state.len() - 1].to_string());
+                water_right.state = split.next().map(|state| state[1..state.len() - 1].to_string());
                 water_right.external_identifier = split.next().map(|ext_id| ext_id.to_string());
             }
             ("erteilt durch /", _) => (),

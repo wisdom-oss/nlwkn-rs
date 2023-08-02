@@ -8,8 +8,6 @@ lazy_static! {
 
 pub async fn start_socks_proxy() -> anyhow::Result<()> {
     let tor_runtime = PreferredRuntime::current()?;
-    let tor_client = TorClient::with_runtime(tor_runtime.clone())
-        .create_bootstrapped()
-        .await?;
+    let tor_client = TorClient::with_runtime(tor_runtime.clone()).create_bootstrapped().await?;
     arti::socks::run_socks_proxy(tor_runtime, tor_client, *SOCKS_PORT).await
 }

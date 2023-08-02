@@ -25,11 +25,7 @@ impl From<KeyValueRepr> for GroupedKeyValueRepr {
         let mut key_value_repr_iter = key_value_repr.0.into_iter().peekable();
 
         let mut root = Vec::new();
-        while key_value_repr_iter
-            .peek()
-            .map(|(key, _)| key != "Abteilung:")
-            .unwrap_or(true)
-        {
+        while key_value_repr_iter.peek().map(|(key, _)| key != "Abteilung:").unwrap_or(true) {
             if let Some(pair) = key_value_repr_iter.next() {
                 root.push(pair);
             }

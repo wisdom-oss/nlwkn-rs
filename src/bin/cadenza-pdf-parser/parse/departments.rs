@@ -23,9 +23,7 @@ pub fn parse_departments(
 
         let mut legal_department = LegalDepartment::new(abbreviation, description);
         parse_usage_locations(usage_locations, &mut legal_department)?;
-        water_right
-            .legal_departments
-            .insert(abbreviation, legal_department);
+        water_right.legal_departments.insert(abbreviation, legal_department);
     }
 
     Ok(())
@@ -110,15 +108,11 @@ fn parse_usage_location(
             ("Verordnungszitat:", v, _) => usage_location.regulation_citation = v,
             ("Erlaubniswert:", Some(v), _) => {
                 let mut split = v.rsplitn(3, " ");
-                let unit = split
-                    .next()
-                    .ok_or(anyhow::Error::msg("'Erlaubniswert' has no unit"))?;
-                let value = split
-                    .next()
-                    .ok_or(anyhow::Error::msg("'Erlaubniswert' has no value"))?;
-                let kind = split
-                    .next()
-                    .ok_or(anyhow::Error::msg("'Erlaubniswert' has no specifier"))?;
+                let unit = split.next().ok_or(anyhow::Error::msg("'Erlaubniswert' has no unit"))?;
+                let value =
+                    split.next().ok_or(anyhow::Error::msg("'Erlaubniswert' has no value"))?;
+                let kind =
+                    split.next().ok_or(anyhow::Error::msg("'Erlaubniswert' has no specifier"))?;
                 match kind {
                     "Entnahmemenge" => {
                         let (time_dim, dim_num) = nlwkn_rs::rate_entry_from_str(value, unit)?;

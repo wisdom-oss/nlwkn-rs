@@ -94,12 +94,8 @@ impl CadenzaTable {
     pub fn from_path(path: &Path) -> anyhow::Result<CadenzaTable> {
         let mut workbook: Xlsx<_> = calamine::open_workbook(path)?;
         let worksheets = workbook.worksheets();
-        let (_, range) = worksheets
-            .get(0)
-            .ok_or(anyhow::Error::msg("workbook empty"))?;
-        let iter = RangeDeserializerBuilder::new()
-            .has_headers(true)
-            .from_range(range)?;
+        let (_, range) = worksheets.get(0).ok_or(anyhow::Error::msg("workbook empty"))?;
+        let iter = RangeDeserializerBuilder::new().has_headers(true).from_range(range)?;
         let rows: Result<Vec<CadenzaTableRow>, _> = iter.collect();
         Ok(CadenzaTable(rows?))
     }
@@ -130,10 +126,7 @@ where
 {
     let float: calamine::DataType = calamine::DataType::deserialize(deserializer)?;
     Ok(Some(
-        float
-            .as_date()
-            .ok_or(serde::de::Error::custom("cannot convert to date"))?
-            .to_string()
+        float.as_date().ok_or(serde::de::Error::custom("cannot convert to date"))?.to_string()
     ))
 }
 
@@ -180,9 +173,7 @@ mod tests {
             subject: None,
             address: "1/34556".to_string().into(),
             usage_location_no: 101,
-            usage_location: "OW-entn.f.Fischt.b.NiedrigwasKörtkeBokel"
-                .to_string()
-                .into(),
+            usage_location: "OW-entn.f.Fischt.b.NiedrigwasKörtkeBokel".to_string().into(),
             legal_department: "Entnahme von Wasser oder Entnahmen fester Stoffe aus oberirdischen \
                                Gewässern"
                 .to_string(),

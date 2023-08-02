@@ -74,10 +74,7 @@ async fn main() {
     let mut fetched_reports = {
         let _pb = ProgressBarGuard::new_wait_spinner("Fetching already downloaded reports...");
         BTreeSet::from_iter(
-            find_fetched_reports()
-                .expect("could not find already fetched reports")
-                .iter()
-                .copied()
+            find_fetched_reports().expect("could not find already fetched reports").iter().copied()
         )
     };
 
@@ -177,11 +174,7 @@ async fn main() {
         false => println!(
             "{}, could not fetch: {}",
             console::style("Fetching done").magenta(),
-            unfetched_reports
-                .iter()
-                .map(|no| no.to_string())
-                .collect::<Vec<String>>()
-                .join(", ")
+            unfetched_reports.iter().map(|no| no.to_string()).collect::<Vec<String>>().join(", ")
         ),
         true => println!("{}", console::style("Fetched all reports").magenta())
     }

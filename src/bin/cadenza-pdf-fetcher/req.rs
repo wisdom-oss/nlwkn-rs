@@ -15,11 +15,7 @@ pub async fn fetch_report_url(
          wbe_net_wasserrecht.cwf&ShowLegacy.RepositoryItem.Value='{water_right_no}'&ShowLegacy.\
          RepositoryItem.Attribute=wbe_net_wasserrecht.wasserrecht_nr"
     );
-    let command_res = client
-        .get(command_url)
-        .header("User-Agent", USER_AGENT)
-        .send()
-        .await?;
+    let command_res = client.get(command_url).header("User-Agent", USER_AGENT).send().await?;
     match command_res.status().as_u16() {
         302 => (),
         code => {
@@ -34,19 +30,12 @@ pub async fn fetch_report_url(
         .get("Location")
         .ok_or(anyhow::Error::msg("command res has no 'Location' header"))?;
     let wait_xhtml_url = wait_xhtml_url.to_str()?;
-    let j_session_id = wait_xhtml_url
-        .split(";jsessionid=")
-        .nth(1)
-        .ok_or(anyhow::Error::msg(
-            "command res has no session id in 'Location' header"
-        ))?;
+    let j_session_id = wait_xhtml_url.split(";jsessionid=").nth(1).ok_or(anyhow::Error::msg(
+        "command res has no session id in 'Location' header"
+    ))?;
 
     let wait_cweb_url = format!("{CADENZA_URL}wait.cweb;jsessionid={j_session_id}");
-    let wait_cweb_res = client
-        .get(wait_cweb_url)
-        .header("User-Agent", USER_AGENT)
-        .send()
-        .await?;
+    let wait_cweb_res = client.get(wait_cweb_url).header("User-Agent", USER_AGENT).send().await?;
     match wait_cweb_res.status().as_u16() {
         302 => (),
         code => {
@@ -61,11 +50,7 @@ pub async fn fetch_report_url(
         .get("Location")
         .ok_or(anyhow::Error::msg("wait cweb has no 'Location' header"))?;
     let finished_url = format!("{CADENZA_ROOT}{}", finished_url.to_str()?);
-    let finished_res = client
-        .get(finished_url)
-        .header("User-Agent", USER_AGENT)
-        .send()
-        .await?;
+    let finished_res = client.get(finished_url).header("User-Agent", USER_AGENT).send().await?;
     match finished_res.status().as_u16() {
         302 => (),
         code => {
