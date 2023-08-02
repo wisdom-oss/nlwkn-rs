@@ -92,14 +92,24 @@ fn main() -> ExitCode {
     for (water_right_no, document) in reports {
         PROGRESS.set_prefix(water_right_no.to_string());
         let mut water_right = WaterRight::new(water_right_no);
+        // if let Err(e) = parse_document(&mut water_right, document) {
+        //     progress_message(
+        //         &PROGRESS,
+        //         "Error",
+        //         Color::Red,
+        //         format!("could not parse report for {water_right_no}, {e}, will abort now")
+        //     );
+        //     break;
+        // }
         if let Err(e) = parse_document(&mut water_right, document) {
             progress_message(
                 &PROGRESS,
-                "Error",
-                Color::Red,
-                format!("could not parse report for {water_right_no}, {e}, will abort now")
+                "Warning",
+                Color::Yellow,
+                format!("could not parse report for {water_right_no}, {e}, will be skipped")
             );
-            break;
+            PROGRESS.inc(1);
+            continue;
         }
 
         for row in cadenza_table.rows().iter().filter(|row| row.no == water_right_no) {
@@ -153,7 +163,6 @@ fn main() -> ExitCode {
 
         water_rights.push(water_right);
         PROGRESS.inc(1);
-        break;
     }
 
     PROGRESS.set_style(SPINNER_STYLE.clone());
@@ -182,7 +191,7 @@ fn main() -> ExitCode {
         }
     };
 
-    if let Err(e) = fs::write(reports_json_path, reports_json) {
+    if let Err(e) = fs::write(&reports_json_path, reports_json) {
         progress_message(
             &PROGRESS,
             "Error",
@@ -194,6 +203,13 @@ fn main() -> ExitCode {
     }
 
     PROGRESS.finish_and_clear();
+    println!(
+        "{}{}{} {}",
+        console::style("Successfully parsed reports (").magenta(),
+        console::style(water_rights.len()).cyan(),
+        console::style(") written to").magenta(),
+        console::style(reports_json_path.display()).cyan()
+    );
     ExitCode::SUCCESS
 }
 
