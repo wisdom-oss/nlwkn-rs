@@ -84,10 +84,10 @@ pub struct CadenzaTableRow {
     pub water_protection_area: Option<String>,
 
     #[serde(rename = "UTM-Rechtswert", deserialize_with = "zero_as_none")]
-    pub utm_easting: Option<i64>,
+    pub utm_easting: Option<u64>,
 
     #[serde(rename = "UTM-Hochwert", deserialize_with = "zero_as_none")]
-    pub utm_northing: Option<i64>
+    pub utm_northing: Option<u64>
 }
 
 impl CadenzaTable {
@@ -130,11 +130,11 @@ where
     ))
 }
 
-fn zero_as_none<'de, D>(deserializer: D) -> Result<Option<i64>, D::Error>
+fn zero_as_none<'de, D>(deserializer: D) -> Result<Option<u64>, D::Error>
 where
     D: Deserializer<'de>
 {
-    let option: Option<i64> = Option::deserialize(deserializer)?;
+    let option: Option<u64> = Option::deserialize(deserializer)?;
     match option {
         Some(0) => Ok(None),
         Some(x) => Ok(Some(x)),
