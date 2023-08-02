@@ -47,15 +47,14 @@ fn main() {
 
     let (reports, broken_reports) = load_reports(report_dir).unwrap();
     if !broken_reports.is_empty() {
-        println!("found {} broken reports", broken_reports.len());
+        eprintln!("found {} broken reports", broken_reports.len());
     }
 
     let cadenza_table = CadenzaTable::from_path(&xlsx_path).unwrap();
     let mut water_rights = Vec::with_capacity(cadenza_table.rows().capacity());
 
-    let mut out = std::io::stdout().lock();
     for (water_right_no, document) in reports {
-        write!(out, "{water_right_no}").unwrap();
+        eprintln!("{water_right_no}");
         let mut water_right = WaterRight::new(water_right_no);
         parse_document(&mut water_right, document).unwrap();
 
@@ -106,13 +105,14 @@ fn main() {
         }
 
         // TODO: sanitize utm values
+        // TODO: fill granting if granting is missing but registered is set
         // TODO: normalize dates
 
         water_rights.push(water_right);
         break;
     }
 
-    dbg!(water_rights);
+    println!("{}", serde_json::to_string(&water_rights).unwrap());
 }
 
 type Reports = Vec<(WaterRightNo, Document)>;
