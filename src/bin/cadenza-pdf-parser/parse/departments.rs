@@ -79,11 +79,11 @@ fn parse_usage_location(
                 usage_location.legal_scope =
                     v.splitn(2, " ").map(ToString::to_string).collect_tuple()
             }
-            ("East und North:", Some(v), _) => usage_location.utm_northing = Some(v.parse()?),
+            ("East und North:", Some(v), _) => usage_location.utm_easting = Some(v.parse()?),
             ("Top. Karte 1:25.000:", Some(num), Some(s)) => {
                 usage_location.top_map_1_25000 = Some((num.parse()?, s))
             }
-            ("(ETRS89/UTM 32N)", Some(v), _) => usage_location.utm_easting = Some(v.parse()?),
+            ("(ETRS89/UTM 32N)", Some(v), _) => usage_location.utm_northing = Some(v.parse()?),
             ("Gemeindegebiet:", Some(num), Some(s)) => {
                 usage_location.municipal_area = Some((num.parse()?, s))
             }
