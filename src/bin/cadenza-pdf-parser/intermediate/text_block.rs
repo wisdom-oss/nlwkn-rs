@@ -179,7 +179,9 @@ fn handle_tj(text_block: &mut TextBlock, operands: &Vec<Object>) {
 
     text_block.content = match (text_block.content.take(), !content.is_empty()) {
         (Some(prev), true) => match prev.chars().last() {
+            // this is only a heuristic
             Some('-' | '/') => Some(format!("{prev}{content}")),
+            Some('.' | ';') => Some(format!("{prev}\n{content}")),
             _ => Some(format!("{prev} {content}"))
         },
         (Some(prev), false) => Some(prev),
