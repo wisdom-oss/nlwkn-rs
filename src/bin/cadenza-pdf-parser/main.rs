@@ -14,7 +14,7 @@ use lazy_static::lazy_static;
 use lopdf::Document;
 use nlwkn_rs::cadenza::CadenzaTable;
 use nlwkn_rs::cli::{progress_message, PROGRESS_STYLE, PROGRESS_UPDATE_INTERVAL, SPINNER_STYLE};
-use nlwkn_rs::util::OptionUpdate;
+use nlwkn_rs::util::{OptionUpdate, zero_is_none};
 use nlwkn_rs::{WaterRight, WaterRightNo};
 use regex::Regex;
 use tokio::task::JoinHandle;
@@ -151,10 +151,14 @@ async fn main() -> ExitCode {
                         .update_if_none_clone(row.water_protection_area.as_ref());
                     ul.utm_easting.update_if_none_clone(row.utm_easting.as_ref());
                     ul.utm_northing.update_if_none_clone(row.utm_northing.as_ref());
+
+                    // sanitize coordinates
+                    ul.utm_easting = ul.utm_easting.and_then(zero_is_none);
+                    ul.utm_northing = ul.utm_northing.and_then(zero_is_none);
                 }
 
                 // remove "Bemerkung: " from annotations if they begin with that
-                if let Some(annotation) = water_right.annotation {
+                if let Some(annotation) = water_right.annotation.as_ref() {
                     if annotation.starts_with("Bemerkung: ") {
                         water_right.annotation = annotation
                             .splitn(2, "Bemerkung: ")
@@ -164,8 +168,7 @@ async fn main() -> ExitCode {
                             .into();
                     }
                 }
-
-                // TODO: sanitize utm values
+                
                 // TODO: fill granting if granting is missing but registered is set
                 // TODO: normalize dates
 

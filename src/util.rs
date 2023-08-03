@@ -76,3 +76,10 @@ impl<T: Clone> OptionUpdate<T> for Option<T> {
         }
     }
 }
+
+pub fn zero_is_none(value: u64) -> Option<u64> {
+    match value {
+        0 => None,
+        _ => Some(value)
+    }
+}
