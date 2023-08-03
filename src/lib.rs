@@ -408,7 +408,11 @@ pub fn rate_entry_from_str(
         "w" => TimeDimension::Weeks(factor),
         "M" | "mo" => TimeDimension::Months(factor),
         "a" => TimeDimension::Years(factor),
-        unit => return Err(anyhow::Error::msg(format!("{unit} is a unknown time dimension")))
+        unit => {
+            return Err(anyhow::Error::msg(format!(
+                "{unit} is a unknown time dimension"
+            )))
+        }
     };
 
     Ok((time, DimensionedNumber { value, unit }))

@@ -124,7 +124,10 @@ fn parse_usage_location(
             }
 
             (key, first, second) => {
-                return Err(anyhow::Error::msg(format!("invalid entry for the usage location, key: {key:?}, first: {first:?}, second: {second:?}")));
+                return Err(anyhow::Error::msg(format!(
+                    "invalid entry for the usage location, key: {key:?}, first: {first:?}, \
+                     second: {second:?}"
+                )));
             }
         }
     }
