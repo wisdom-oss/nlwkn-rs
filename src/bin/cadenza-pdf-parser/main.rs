@@ -1,9 +1,12 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::sync::Arc;
 
 use clap::Parser;
 use console::Color;
+use futures::stream::FuturesUnordered;
+use futures::StreamExt;
 use indicatif::ProgressBar;
 use itertools::Itertools;
 use lazy_static::lazy_static;
@@ -12,6 +15,7 @@ use nlwkn_rs::cadenza::CadenzaTable;
 use nlwkn_rs::cli::{progress_message, PROGRESS_STYLE, PROGRESS_UPDATE_INTERVAL, SPINNER_STYLE};
 use nlwkn_rs::{WaterRight, WaterRightNo};
 use regex::Regex;
+use tokio::task::JoinHandle;
 
 use crate::parse::parse_document;
 use crate::util::OptionUpdate;
@@ -37,7 +41,8 @@ struct Args {
     data_path: PathBuf
 }
 
-fn main() -> ExitCode {
+#[tokio::main]
+async fn main() -> ExitCode {
     let Args {
         xlsx_path,
         data_path
@@ -70,98 +75,129 @@ fn main() -> ExitCode {
     PROGRESS.set_message("Parsing table...");
     let cadenza_table = match CadenzaTable::from_path(&xlsx_path) {
         Ok(table) => table,
-        Err(e) => {
+        Err(err) => {
             progress_message(
                 &PROGRESS,
                 "Error",
                 Color::Red,
-                format!("could not parse table, {e}")
+                format!("could not parse table, {err}")
             );
             PROGRESS.finish_and_clear();
             return ExitCode::FAILURE;
         }
     };
+    let cadenza_table = Arc::new(cadenza_table);
     let mut water_rights = Vec::with_capacity(cadenza_table.rows().capacity());
+
+    let mut tasks = FuturesUnordered::new();
 
     PROGRESS.set_style(PROGRESS_STYLE.clone());
     PROGRESS.set_message("Parsing Reports");
     PROGRESS.set_length(reports.len() as u64);
     PROGRESS.set_position(0);
-    // TODO: remove this lint annotation
-    #[allow(clippy::never_loop)]
+
     for (water_right_no, document) in reports {
-        PROGRESS.set_prefix(water_right_no.to_string());
-        let mut water_right = WaterRight::new(water_right_no);
-        // if let Err(e) = parse_document(&mut water_right, document) {
-        //     progress_message(
-        //         &PROGRESS,
-        //         "Error",
-        //         Color::Red,
-        //         format!("could not parse report for {water_right_no}, {e}, will abort now")
-        //     );
-        //     break;
-        // }
-        if let Err(e) = parse_document(&mut water_right, document) {
-            progress_message(
-                &PROGRESS,
-                "Warning",
-                Color::Yellow,
-                format!("could not parse report for {water_right_no}, {e}, will be skipped")
-            );
-            PROGRESS.inc(1);
-            continue;
-        }
+        let cadenza_table = cadenza_table.clone();
+        // TODO: move this tasks into own function
+        let task: JoinHandle<Result<WaterRight, (WaterRightNo, anyhow::Error)>> =
+            tokio::spawn(async move {
+                let mut water_right = WaterRight::new(water_right_no);
+                if let Err(e) = parse_document(&mut water_right, document) {
+                    return Err((water_right_no, e));
+                }
 
-        for row in cadenza_table.rows().iter().filter(|row| row.no == water_right_no) {
-            let wr = &mut water_right;
-            wr.bailee.update_if_none_clone(row.bailee.as_ref());
-            wr.valid_to.update_if_none_clone(row.valid_to.as_ref());
-            wr.state.update_if_none_clone(row.state.as_ref());
-            wr.valid_from.update_if_none_clone(row.valid_from.as_ref());
-            wr.legal_title.update_if_none_clone(row.legal_title.as_ref());
-            wr.water_authority.update_if_none_clone(row.water_authority.as_ref());
-            wr.granting_authority.update_if_none_clone(row.granting_authority.as_ref());
-            wr.date_of_change.update_if_none_clone(row.date_of_change.as_ref());
-            wr.file_reference.update_if_none_clone(row.file_reference.as_ref());
-            wr.external_identifier.update_if_none_clone(row.external_identifier.as_ref());
-            wr.address.update_if_none_clone(row.address.as_ref());
-        }
+                for row in cadenza_table.rows().iter().filter(|row| row.no == water_right_no) {
+                    let wr = &mut water_right;
+                    wr.bailee.update_if_none_clone(row.bailee.as_ref());
+                    wr.valid_to.update_if_none_clone(row.valid_to.as_ref());
+                    wr.state.update_if_none_clone(row.state.as_ref());
+                    wr.valid_from.update_if_none_clone(row.valid_from.as_ref());
+                    wr.legal_title.update_if_none_clone(row.legal_title.as_ref());
+                    wr.water_authority.update_if_none_clone(row.water_authority.as_ref());
+                    wr.granting_authority.update_if_none_clone(row.granting_authority.as_ref());
+                    wr.date_of_change.update_if_none_clone(row.date_of_change.as_ref());
+                    wr.file_reference.update_if_none_clone(row.file_reference.as_ref());
+                    wr.external_identifier.update_if_none_clone(row.external_identifier.as_ref());
+                    wr.address.update_if_none_clone(row.address.as_ref());
+                }
 
-        for usage_location in water_right
-            .legal_departments
-            .iter_mut()
-            .flat_map(|(_, department)| department.usage_locations.iter_mut())
-        {
-            let Some(row) = cadenza_table.rows().iter().find(|row| {
-                row.no == water_right_no &&
-                    usage_location.name.is_some() &&
-                    row.usage_location == usage_location.name
-            })
-            else {
-                continue;
-            };
+                for usage_location in water_right
+                    .legal_departments
+                    .iter_mut()
+                    .flat_map(|(_, department)| department.usage_locations.iter_mut())
+                {
+                    let Some(row) = cadenza_table.rows().iter().find(|row| {
+                        row.no == water_right_no &&
+                            usage_location.name.is_some() &&
+                            row.usage_location == usage_location.name
+                    })
+                    else {
+                        continue;
+                    };
 
-            let ul = usage_location;
-            ul.no.update_if_none(Some(row.usage_location_no));
-            ul.legal_scope.update_if_none_with(|| {
-                row.legal_scope.as_ref().and_then(|ls| {
-                    ls.splitn(2, ' ').map(ToString::to_string).collect_tuple::<(String, String)>()
-                })
+                    let ul = usage_location;
+                    ul.no.update_if_none(Some(row.usage_location_no));
+                    ul.legal_scope.update_if_none_with(|| {
+                        row.legal_scope.as_ref().and_then(|ls| {
+                            ls.splitn(2, ' ')
+                                .map(ToString::to_string)
+                                .collect_tuple::<(String, String)>()
+                        })
+                    });
+                    ul.county.update_if_none_clone(row.county.as_ref());
+                    ul.rivershed.update_if_none_clone(row.rivershed.as_ref());
+                    ul.groundwater_volume.update_if_none_clone(row.groundwater_volume.as_ref());
+                    ul.flood_area.update_if_none_clone(row.flood_area.as_ref());
+                    ul.water_protection_area
+                        .update_if_none_clone(row.water_protection_area.as_ref());
+                    ul.utm_easting.update_if_none_clone(row.utm_easting.as_ref());
+                    ul.utm_northing.update_if_none_clone(row.utm_northing.as_ref());
+                }
+
+                // TODO: sanitize utm values
+                // TODO: fill granting if granting is missing but registered is set
+                // TODO: normalize dates
+
+                Ok(water_right)
             });
-            ul.county.update_if_none_clone(row.county.as_ref());
-            ul.rivershed.update_if_none_clone(row.rivershed.as_ref());
-            ul.groundwater_volume.update_if_none_clone(row.groundwater_volume.as_ref());
-            ul.flood_area.update_if_none_clone(row.flood_area.as_ref());
-            ul.water_protection_area.update_if_none_clone(row.water_protection_area.as_ref());
-            ul.utm_easting.update_if_none_clone(row.utm_easting.as_ref());
-            ul.utm_northing.update_if_none_clone(row.utm_northing.as_ref());
-        }
 
-        // TODO: sanitize utm values
-        // TODO: fill granting if granting is missing but registered is set
-        // TODO: normalize dates
+        tasks.push(task);
+    }
 
-        water_rights.push(water_right);
+    while let Some(task_res) = tasks.next().await {
+        let parse_res = match task_res {
+            Ok(parse_res) => parse_res,
+            Err(err) => {
+                progress_message(
+                    &PROGRESS,
+                    "Error",
+                    Color::Red,
+                    format!("could not join task, {err}")
+                );
+                PROGRESS.inc(1);
+                continue;
+            }
+        };
+
+        let water_right_no = match parse_res {
+            Ok(water_right) => {
+                let no = water_right.no;
+                water_rights.push(water_right);
+                no
+            }
+
+            Err((water_right_no, err)) => {
+                progress_message(
+                    &PROGRESS,
+                    "Warning",
+                    Color::Yellow,
+                    format!("could not parse report for {water_right_no}, {err}, will be skipped")
+                );
+                water_right_no
+            }
+        };
+
+        PROGRESS.set_prefix(water_right_no.to_string());
         PROGRESS.inc(1);
     }
 
