@@ -168,8 +168,16 @@ async fn main() -> ExitCode {
                             .into();
                     }
                 }
-                
-                // TODO: fill granting if granting is missing but registered is set
+
+                // fill granting authority if registering authority is set but not granting, the
+                // registering authority then also granted
+                if let (Some(register), None) = (
+                    water_right.registering_authority.as_ref(),
+                    water_right.granting_authority.as_ref()
+                ) {
+                    water_right.granting_authority = Some(register.to_string());
+                }
+
                 // TODO: normalize dates
 
                 Ok(water_right)
