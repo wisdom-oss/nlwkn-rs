@@ -1,10 +1,11 @@
 use std::str::FromStr;
+
 use itertools::Itertools;
 use lazy_static::lazy_static;
-use nlwkn_rs::{LegalDepartment, LegalDepartmentAbbreviation, UsageLocation, WaterRight};
-use regex::Regex;
 use nlwkn_rs::helper_types::Rate;
 use nlwkn_rs::util::StringOption;
+use nlwkn_rs::{LegalDepartment, LegalDepartmentAbbreviation, UsageLocation, WaterRight};
+use regex::Regex;
 
 use crate::intermediate::key_value::KeyValuePair;
 
@@ -113,7 +114,9 @@ fn parse_usage_location(
                     split.next().ok_or(anyhow::Error::msg("'Erlaubniswert' has no specifier"))?;
                 match kind {
                     "Entnahmemenge" => {
-                        usage_location.withdrawal_rate.insert(Rate::from_str(format!("{value} {unit}").as_str())?);
+                        usage_location
+                            .withdrawal_rate
+                            .insert(Rate::from_str(format!("{value} {unit}").as_str())?);
                     }
                     a => return Err(anyhow::Error::msg(format!("unknown allow value: {a:?}")))
                 }

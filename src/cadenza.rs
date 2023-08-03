@@ -4,8 +4,8 @@ use std::path::Path;
 use calamine::{RangeDeserializerBuilder, Reader, Xlsx};
 use serde::{Deserialize, Deserializer};
 
-use crate::WaterRightNo;
 use crate::util::{OptionUpdate, StringOption};
+use crate::WaterRightNo;
 
 #[derive(Debug)]
 pub struct CadenzaTable(Vec<CadenzaTableRow>);
@@ -148,7 +148,6 @@ impl CadenzaTable {
             row.water_protection_area = row.water_protection_area.take().sanitize();
         }
     }
-
 }
 
 fn deserialize_date<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>

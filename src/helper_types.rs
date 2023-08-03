@@ -2,11 +2,11 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter, Write};
 use std::str::FromStr;
-use lazy_static::lazy_static;
 
+use lazy_static::lazy_static;
 use regex::Regex;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::Error;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_with::{DeserializeAs, OneOrMany, Same};
 
 use crate::util::data_structs;
@@ -18,7 +18,10 @@ pub struct Rate<T> {
     pub time: TimeDimension
 }
 
-impl<T> PartialEq for Rate<T> where T: PartialEq {
+impl<T> PartialEq for Rate<T>
+where
+    T: PartialEq
+{
     fn eq(&self, other: &Self) -> bool {
         self.time == other.time && self.value == other.value
     }
@@ -26,28 +29,50 @@ impl<T> PartialEq for Rate<T> where T: PartialEq {
 
 impl<T> Eq for Rate<T> where T: PartialEq {}
 
-impl<T> PartialOrd<Self> for Rate<T> where T: PartialEq {
+impl<T> PartialOrd<Self> for Rate<T>
+where
+    T: PartialEq
+{
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<T> Ord for Rate<T> where T: PartialEq  {
+impl<T> Ord for Rate<T>
+where
+    T: PartialEq
+{
     fn cmp(&self, other: &Self) -> Ordering {
         self.time.cmp(&other.time)
     }
 }
 
-impl<T> Serialize for Rate<T> where T: Serialize {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+impl<T> Serialize for Rate<T>
+where
+    T: Serialize
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer
+    {
         (&self.value, &self.measurement, &self.time).serialize(serializer)
     }
 }
 
-impl<'de, T> Deserialize<'de> for Rate<T> where T: Deserialize<'de> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
+impl<'de, T> Deserialize<'de> for Rate<T>
+where
+    T: Deserialize<'de>
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>
+    {
         let (value, measurement, time) = <(T, String, TimeDimension)>::deserialize(deserializer)?;
-        Ok(Rate { value, measurement, time })
+        Ok(Rate {
+            value,
+            measurement,
+            time
+        })
     }
 }
 
@@ -63,7 +88,8 @@ impl FromStr for Rate<f64> {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut split = s.splitn(2, ' ');
         let value = split.next().expect("split never empty");
-        let unit = split.next().ok_or_else(|| anyhow::Error::msg(format!("rate has no unit: {s}")))?;
+        let unit =
+            split.next().ok_or_else(|| anyhow::Error::msg(format!("rate has no unit: {s}")))?;
 
         let value: f64 = value.parse()?;
 
@@ -87,7 +113,11 @@ impl FromStr for Rate<f64> {
             }
         };
 
-        Ok(Rate { value, measurement, time })
+        Ok(Rate {
+            value,
+            measurement,
+            time
+        })
     }
 }
 
@@ -122,7 +152,10 @@ impl TimeDimension {
 }
 
 impl Serialize for TimeDimension {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer
+    {
         let s: Cow<'_, str> = match self {
             TimeDimension::Seconds(1) => "s".into(),
             TimeDimension::Seconds(v) => format!("{v}s").into(),
@@ -143,7 +176,7 @@ impl Serialize for TimeDimension {
             TimeDimension::Months(v) => format!("{v}mo").into(),
 
             TimeDimension::Years(1) => "a".into(),
-            TimeDimension::Years(v) => format!("{v}a").into(),
+            TimeDimension::Years(v) => format!("{v}a").into()
         };
 
         s.serialize(serializer)
@@ -151,13 +184,19 @@ impl Serialize for TimeDimension {
 }
 
 lazy_static! {
-    static ref TIME_RE: Regex = Regex::new(r"^(?<value>\d*)(?<duration>\w+)$").expect("valid regex");
+    static ref TIME_RE: Regex =
+        Regex::new(r"^(?<value>\d*)(?<duration>\w+)$").expect("valid regex");
 }
 
 impl<'de> Deserialize<'de> for TimeDimension {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>
+    {
         let s = String::deserialize(deserializer)?;
-        let captured = TIME_RE.captures(s.as_str()).ok_or(D::Error::custom(format!("time duration has invalid format: {s}")))?;
+        let captured = TIME_RE.captures(s.as_str()).ok_or(D::Error::custom(format!(
+            "time duration has invalid format: {s}"
+        )))?;
 
         let value = &captured["value"];
         let value = match value.is_empty() {

@@ -14,12 +14,12 @@ use lazy_static::lazy_static;
 use lopdf::Document;
 use nlwkn_rs::cadenza::CadenzaTable;
 use nlwkn_rs::cli::{progress_message, PROGRESS_STYLE, PROGRESS_UPDATE_INTERVAL, SPINNER_STYLE};
+use nlwkn_rs::util::OptionUpdate;
 use nlwkn_rs::{WaterRight, WaterRightNo};
 use regex::Regex;
 use tokio::task::JoinHandle;
 
 use crate::parse::parse_document;
-use nlwkn_rs::util::OptionUpdate;
 
 mod intermediate;
 mod parse;
@@ -248,7 +248,9 @@ async fn main() -> ExitCode {
 
     // save broken reports
 
-    let broken_reports_json = match serde_json::to_string_pretty(&_broken_reports.into_iter().map(|(no, _)| no).collect::<Vec<WaterRightNo>>()) {
+    let broken_reports_json = match serde_json::to_string_pretty(
+        &_broken_reports.into_iter().map(|(no, _)| no).collect::<Vec<WaterRightNo>>()
+    ) {
         Ok(json) => json,
         Err(e) => {
             progress_message(
