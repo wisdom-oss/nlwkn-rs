@@ -94,6 +94,7 @@ async fn main() -> ExitCode {
     PROGRESS.set_message("Parsing Reports");
     PROGRESS.set_length(reports.len() as u64);
     PROGRESS.set_position(0);
+    PROGRESS.set_prefix("🚀");
 
     let mut tasks = FuturesUnordered::new();
     for (water_right_no, document) in reports {
@@ -252,7 +253,6 @@ async fn main() -> ExitCode {
             }
         };
 
-        PROGRESS.set_prefix(water_right_no.to_string());
         PROGRESS.inc(1);
     }
 
