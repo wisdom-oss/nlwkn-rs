@@ -66,7 +66,7 @@ fn parse_usage_location(
             ("Nutzungsort Lfd. Nr.:", Some(v), _) => {
                 let captured = USAGE_LOCATION_RE
                     .captures(&v)
-                    .ok_or(anyhow::Error::msg("'Nutzungsort' has invalid format"))?;
+                    .ok_or(anyhow::Error::msg(format!("'Nutzungsort' has invalid format: {v}")))?;
                 usage_location.serial_no = Some(captured["ser_no"].to_string());
                 usage_location.active = Some(&captured["active"] == "aktiv");
                 usage_location.real = Some(&captured["real"] == "real");
@@ -77,30 +77,36 @@ fn parse_usage_location(
                     v.splitn(2, ' ').map(ToString::to_string).collect_tuple()
             }
             ("East und North:", Some(v), _) => usage_location.utm_easting = Some(v.parse()?),
+            ("Top. Karte 1:25.000:", None, None) => (),
             ("Top. Karte 1:25.000:", Some(num), Some(s)) => {
                 usage_location.top_map_1_25000 = Some((num.parse()?, s))
             }
             ("(ETRS89/UTM 32N)", Some(v), _) => usage_location.utm_northing = Some(v.parse()?),
+            ("Gemeindegebiet:", None, None) => (),
             ("Gemeindegebiet:", Some(num), Some(s)) => {
                 usage_location.municipal_area = Some((num.parse()?, s))
             }
             ("Gemarkung, Flur:", None, None) => (),
             ("Gemarkung, Flur:", Some(v), _) => {
+                let v = v.replace(" ", "");
                 let captured = STRING_NUM_RE
                     .captures(&v)
-                    .ok_or(anyhow::Error::msg("'Gemarkung, Flur' has invalid format"))?;
+                    .ok_or(anyhow::Error::msg(format!("'Gemarkung, Flur' has invalid format: {v}")))?;
                 usage_location.local_sub_district = Some(captured["string"].to_string());
                 usage_location.field = Some(captured["num"].parse()?);
             }
+            ("Unterhaltungsverband:", None, None) => (),
             ("Unterhaltungsverband:", Some(num), Some(s)) => {
                 usage_location.maintenance_association = Some((num.parse()?, s))
             }
             ("Flurstück:", None, None) => (),
             ("Flurstück:", Some(v), _) => usage_location.plot = Some(v.parse()?),
+            ("EU-Bearbeitungsgebiet:", None, None) => (),
             ("EU-Bearbeitungsgebiet:", Some(num), Some(s)) => {
                 usage_location.eu_survey_area = Some((num.parse()?, s))
             }
             ("Gewässer:", v, _) => usage_location.water_body = v,
+            ("Einzugsgebietskennzahl:", None, None) => (),
             ("Einzugsgebietskennzahl:", Some(num), Some(s)) => {
                 usage_location.basin_no = Some((num.parse()?, s))
             }
@@ -112,11 +118,17 @@ fn parse_usage_location(
                     split.next().ok_or(anyhow::Error::msg("'Erlaubniswert' has no value"))?;
                 let kind =
                     split.next().ok_or(anyhow::Error::msg("'Erlaubniswert' has no specifier"))?;
+                let rate = format!("{value} {unit}");
                 match kind {
                     "Entnahmemenge" => {
                         usage_location
                             .withdrawal_rate
-                            .insert(Rate::from_str(format!("{value} {unit}").as_str())?);
+                            .insert(Rate::from_str(&rate)?);
+                    }
+                    "Einleitungsmenge" => {
+                        usage_location
+                            .injection_rate
+                            .insert(Rate::from_str(&rate)?);
                     }
                     a => return Err(anyhow::Error::msg(format!("unknown allow value: {a:?}")))
                 }

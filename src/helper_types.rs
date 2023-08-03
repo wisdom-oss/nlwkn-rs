@@ -100,12 +100,12 @@ impl FromStr for Rate<f64> {
         let factor: u64 = unit_capture["factor"].parse().unwrap_or(1);
         let time = match &unit_capture["time"] {
             "s" => TimeDimension::Seconds(factor),
-            "m" => TimeDimension::Minutes(factor),
+            "m" | "min" => TimeDimension::Minutes(factor),
             "h" => TimeDimension::Hours(factor),
             "d" => TimeDimension::Days(factor),
-            "w" => TimeDimension::Weeks(factor),
+            "w" | "wo" => TimeDimension::Weeks(factor),
             "M" | "mo" => TimeDimension::Months(factor),
-            "a" => TimeDimension::Years(factor),
+            "a" | "y" => TimeDimension::Years(factor),
             unit => {
                 return Err(anyhow::Error::msg(format!(
                     "{unit} is a unknown time dimension"
@@ -169,7 +169,7 @@ impl Serialize for TimeDimension {
             TimeDimension::Days(1) => "d".into(),
             TimeDimension::Days(v) => format!("{v}d").into(),
 
-            TimeDimension::Weeks(1) => "wo".into(),
+            TimeDimension::Weeks(1) => "w".into(),
             TimeDimension::Weeks(v) => format!("{v}wo").into(),
 
             TimeDimension::Months(1) => "mo".into(),
