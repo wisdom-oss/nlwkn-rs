@@ -17,7 +17,7 @@ use nlwkn_rs::cli::{progress_message, PROGRESS_STYLE, PROGRESS_UPDATE_INTERVAL, 
 use nlwkn_rs::util::{zero_is_none, OptionUpdate};
 use nlwkn_rs::{WaterRight, WaterRightNo};
 use regex::Regex;
-use tokio::io::split;
+
 use tokio::task::JoinHandle;
 
 use crate::parse::parse_document;
@@ -162,9 +162,7 @@ async fn main() -> ExitCode {
                 // remove "Bemerkung: " from annotations if they begin with that
                 if let Some(annotation) = water_right.annotation.as_ref() {
                     if annotation.starts_with("Bemerkung: ") {
-                        water_right.annotation = annotation
-                            .splitn(2, "Bemerkung: ")
-                            .nth(1)
+                        water_right.annotation = annotation.split_once("Bemerkung: ").map(|x| x.1)
                             .expect("separator already checked")
                             .to_owned()
                             .into();
@@ -181,7 +179,7 @@ async fn main() -> ExitCode {
                 }
 
                 // normalize dates into ISO form
-                for mut date_opt in [
+                for date_opt in [
                     &mut water_right.valid_to,
                     &mut water_right.valid_from,
                     &mut water_right.first_grant,
@@ -234,7 +232,7 @@ async fn main() -> ExitCode {
             }
         };
 
-        let water_right_no = match parse_res {
+        let _water_right_no = match parse_res {
             Ok(water_right) => {
                 let no = water_right.no;
                 water_rights.push(water_right);
@@ -322,7 +320,7 @@ async fn main() -> ExitCode {
         path
     };
 
-    if let Err(e) = fs::write(&broken_reports_path, broken_reports_json) {
+    if let Err(e) = fs::write(broken_reports_path, broken_reports_json) {
         progress_message(
             &PROGRESS,
             "Error",
@@ -355,7 +353,7 @@ async fn main() -> ExitCode {
         path
     };
 
-    if let Err(e) = fs::write(&parse_errors_path, parse_errors_json) {
+    if let Err(e) = fs::write(parse_errors_path, parse_errors_json) {
         progress_message(
             &PROGRESS,
             "Error",

@@ -4,7 +4,7 @@ use std::path::Path;
 use calamine::{RangeDeserializerBuilder, Reader, Xlsx};
 use serde::{Deserialize, Deserializer};
 
-use crate::util::{OptionUpdate, StringOption};
+use crate::util::{StringOption};
 use crate::WaterRightNo;
 
 #[derive(Debug)]
@@ -125,6 +125,7 @@ impl CadenzaTable {
     }
 
     pub fn sanitize(&mut self) {
+        #[allow(deprecated)]
         for row in self.0.iter_mut() {
             row.bailee = row.bailee.take().sanitize();
             row.valid_to = row.valid_to.take().sanitize();

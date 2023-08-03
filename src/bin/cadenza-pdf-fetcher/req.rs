@@ -72,7 +72,7 @@ pub async fn fetch_report_url(
         .ok_or(anyhow::Error::msg("finish res has 'Location' header"))?;
     let download_url = download_url.to_str()?;
 
-    let captured = REPORT_URL_RE.captures(&download_url).ok_or(anyhow::Error::msg(
+    let captured = REPORT_URL_RE.captures(download_url).ok_or(anyhow::Error::msg(
         "download url does not contain report file id"
     ))?;
     let report_id = &captured["report_id"];

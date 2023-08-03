@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 use std::cmp::Ordering;
-use std::fmt::{Display, Formatter, Write};
 use std::str::FromStr;
 
 use lazy_static::lazy_static;

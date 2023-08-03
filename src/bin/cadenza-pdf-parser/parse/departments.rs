@@ -88,7 +88,7 @@ fn parse_usage_location(
             }
             ("Gemarkung, Flur:", None, None) => (),
             ("Gemarkung, Flur:", Some(v), _) => {
-                let v = v.replace(" ", "");
+                let v = v.replace(' ', "");
                 let captured = STRING_NUM_RE.captures(&v).ok_or(anyhow::Error::msg(format!(
                     "'Gemarkung, Flur' has invalid format: {v}"
                 )))?;
