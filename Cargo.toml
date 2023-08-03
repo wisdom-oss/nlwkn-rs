@@ -13,6 +13,7 @@ name = "cadenza-pdf-parser"
 [dependencies]
 # async runtime
 tokio = { version = "1", features = ["full"] }
+futures = "0.3"
 
 # reading xlsx
 calamine = { version = "0.21", features = ["dates"] }
