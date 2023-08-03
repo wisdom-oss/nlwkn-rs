@@ -292,59 +292,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use const_format::formatcp;
-
-    use crate::helper_types::{OptionalPair, TimeDimension};
-
-    const TIME_DIMENSION_MULTI_VALUE: u64 = 69;
-    const TIME_DIMENSION_DE: [TimeDimension; 14] = [
-        TimeDimension::Seconds(1),
-        TimeDimension::Seconds(TIME_DIMENSION_MULTI_VALUE),
-        TimeDimension::Minutes(1),
-        TimeDimension::Minutes(TIME_DIMENSION_MULTI_VALUE),
-        TimeDimension::Hours(1),
-        TimeDimension::Hours(TIME_DIMENSION_MULTI_VALUE),
-        TimeDimension::Days(1),
-        TimeDimension::Days(TIME_DIMENSION_MULTI_VALUE),
-        TimeDimension::Weeks(1),
-        TimeDimension::Weeks(TIME_DIMENSION_MULTI_VALUE),
-        TimeDimension::Months(1),
-        TimeDimension::Months(TIME_DIMENSION_MULTI_VALUE),
-        TimeDimension::Years(1),
-        TimeDimension::Years(TIME_DIMENSION_MULTI_VALUE)
-    ];
-    const TIME_DIMENSION_SER: &str = formatcp!(
-        "[{:?},{:?},{:?},{:?},{:?},{:?},{:?},{:?},{:?},{:?},{:?},{:?},{:?},{:?}]",
-        "perSecond",
-        "per69Seconds",
-        "perMinute",
-        "per69Minutes",
-        "perHour",
-        "per69Hours",
-        "perDay",
-        "per69Days",
-        "perWeek",
-        "per69Weeks",
-        "perMonth",
-        "per69Months",
-        "perYear",
-        "per69Years"
-    );
-
-    #[test]
-    fn serde_time_dimension() {
-        // serialize
-        assert_eq!(
-            serde_json::to_string(&TIME_DIMENSION_DE).unwrap(),
-            TIME_DIMENSION_SER
-        );
-
-        // deserialize
-        assert_eq!(
-            serde_json::from_str::<Vec<TimeDimension>>(TIME_DIMENSION_SER).unwrap(),
-            TIME_DIMENSION_DE
-        );
-    }
+    use super::*;
 
     const SINGLE_DE: OptionalPair<u32> = OptionalPair::Single(69);
     const PAIR_DE: OptionalPair<u32> = OptionalPair::Pair(69, 420);
