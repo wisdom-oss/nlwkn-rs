@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -87,15 +88,13 @@ async fn main() -> ExitCode {
         }
     };
     let cadenza_table = Arc::new(cadenza_table);
-    let mut water_rights = Vec::with_capacity(cadenza_table.rows().capacity());
-
-    let mut tasks = FuturesUnordered::new();
 
     PROGRESS.set_style(PROGRESS_STYLE.clone());
     PROGRESS.set_message("Parsing Reports");
     PROGRESS.set_length(reports.len() as u64);
     PROGRESS.set_position(0);
 
+    let mut tasks = FuturesUnordered::new();
     for (water_right_no, document) in reports {
         let cadenza_table = cadenza_table.clone();
         // TODO: move this tasks into own function
@@ -154,6 +153,7 @@ async fn main() -> ExitCode {
                     ul.utm_northing.update_if_none_clone(row.utm_northing.as_ref());
                 }
 
+                // TODO: sanitize annotations
                 // TODO: sanitize utm values
                 // TODO: fill granting if granting is missing but registered is set
                 // TODO: normalize dates
@@ -164,6 +164,8 @@ async fn main() -> ExitCode {
         tasks.push(task);
     }
 
+    let mut water_rights = Vec::with_capacity(cadenza_table.rows().capacity());
+    let mut parse_errors = BTreeMap::new();
     while let Some(task_res) = tasks.next().await {
         let parse_res = match task_res {
             Ok(parse_res) => parse_res,
@@ -193,6 +195,7 @@ async fn main() -> ExitCode {
                     Color::Yellow,
                     format!("could not parse report for {water_right_no}, {err}, will be skipped")
                 );
+                parse_errors.insert(water_right_no, err.to_string());
                 water_right_no
             }
         };
@@ -201,8 +204,13 @@ async fn main() -> ExitCode {
         PROGRESS.inc(1);
     }
 
+    // TODO: put following code into clear functions
+
+    // save parsed reports
+
     PROGRESS.set_style(SPINNER_STYLE.clone());
-    PROGRESS.set_message("Saving parsed reports...");
+    PROGRESS.set_message("Saving results...");
+
     let reports_json_path = {
         let mut path = data_path.clone();
         path.push("reports.json");
@@ -233,6 +241,72 @@ async fn main() -> ExitCode {
             "Error",
             Color::Red,
             format!("could not write reports json, {e}")
+        );
+        PROGRESS.finish_and_clear();
+        return ExitCode::FAILURE;
+    }
+
+    // save broken reports
+
+    let broken_reports_json = match serde_json::to_string_pretty(&_broken_reports.into_iter().map(|(no, _)| no).collect::<Vec<WaterRightNo>>()) {
+        Ok(json) => json,
+        Err(e) => {
+            progress_message(
+                &PROGRESS,
+                "Error",
+                Color::Red,
+                format!("could not serialize broken reports to json, {e}")
+            );
+            PROGRESS.finish_and_clear();
+            return ExitCode::FAILURE;
+        }
+    };
+
+    let broken_reports_path = {
+        let mut path = data_path.clone();
+        path.push("broken-reports.json");
+        path
+    };
+
+    if let Err(e) = fs::write(&broken_reports_path, broken_reports_json) {
+        progress_message(
+            &PROGRESS,
+            "Error",
+            Color::Red,
+            format!("could not write broken reports json, {e}")
+        );
+        PROGRESS.finish_and_clear();
+        return ExitCode::FAILURE;
+    }
+
+    // save parse errors
+
+    let parse_errors_json = match serde_json::to_string_pretty(&parse_errors) {
+        Ok(json) => json,
+        Err(e) => {
+            progress_message(
+                &PROGRESS,
+                "Error",
+                Color::Red,
+                format!("could not serialize parse errors to json, {e}")
+            );
+            PROGRESS.finish_and_clear();
+            return ExitCode::FAILURE;
+        }
+    };
+
+    let parse_errors_path = {
+        let mut path = data_path.clone();
+        path.push("parse-errors.json");
+        path
+    };
+
+    if let Err(e) = fs::write(&parse_errors_path, parse_errors_json) {
+        progress_message(
+            &PROGRESS,
+            "Error",
+            Color::Red,
+            format!("could not write parse errors json, {e}")
         );
         PROGRESS.finish_and_clear();
         return ExitCode::FAILURE;
