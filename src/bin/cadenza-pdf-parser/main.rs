@@ -14,9 +14,10 @@ use lazy_static::lazy_static;
 use lopdf::Document;
 use nlwkn_rs::cadenza::CadenzaTable;
 use nlwkn_rs::cli::{progress_message, PROGRESS_STYLE, PROGRESS_UPDATE_INTERVAL, SPINNER_STYLE};
-use nlwkn_rs::util::{OptionUpdate, zero_is_none};
+use nlwkn_rs::util::{zero_is_none, OptionUpdate};
 use nlwkn_rs::{WaterRight, WaterRightNo};
 use regex::Regex;
+use tokio::io::split;
 use tokio::task::JoinHandle;
 
 use crate::parse::parse_document;
@@ -178,7 +179,36 @@ async fn main() -> ExitCode {
                     water_right.granting_authority = Some(register.to_string());
                 }
 
-                // TODO: normalize dates
+                // normalize dates into ISO form
+                for mut date_opt in [
+                    &mut water_right.valid_to,
+                    &mut water_right.valid_from,
+                    &mut water_right.first_grant,
+                    &mut water_right.date_of_change,
+                ] {
+                    let Some(date) = date_opt.as_ref()
+                    else {
+                        continue;
+                    };
+
+                    let mut split = date.split('.');
+                    let day = split.next();
+                    let month = split.next();
+                    let year = split.next();
+                    if split.next().is_some() {
+                        progress_message(
+                            &PROGRESS,
+                            "Warning",
+                            Color::Yellow,
+                            format!("a date in {water_right_no} has an invalid format")
+                        );
+                        continue;
+                    }
+
+                    if let (Some(day), Some(month), Some(year)) = (day, month, year) {
+                        let _ = date_opt.insert(format!("{year}-{month}-{day}"));
+                    }
+                }
 
                 Ok(water_right)
             });
