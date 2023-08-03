@@ -64,9 +64,9 @@ fn parse_usage_location(
 
         match (key.as_str(), first.take(), second.take()) {
             ("Nutzungsort Lfd. Nr.:", Some(v), _) => {
-                let captured = USAGE_LOCATION_RE
-                    .captures(&v)
-                    .ok_or(anyhow::Error::msg(format!("'Nutzungsort' has invalid format: {v}")))?;
+                let captured = USAGE_LOCATION_RE.captures(&v).ok_or(anyhow::Error::msg(
+                    format!("'Nutzungsort' has invalid format: {v}")
+                ))?;
                 usage_location.serial_no = Some(captured["ser_no"].to_string());
                 usage_location.active = Some(&captured["active"] == "aktiv");
                 usage_location.real = Some(&captured["real"] == "real");
@@ -89,9 +89,9 @@ fn parse_usage_location(
             ("Gemarkung, Flur:", None, None) => (),
             ("Gemarkung, Flur:", Some(v), _) => {
                 let v = v.replace(" ", "");
-                let captured = STRING_NUM_RE
-                    .captures(&v)
-                    .ok_or(anyhow::Error::msg(format!("'Gemarkung, Flur' has invalid format: {v}")))?;
+                let captured = STRING_NUM_RE.captures(&v).ok_or(anyhow::Error::msg(format!(
+                    "'Gemarkung, Flur' has invalid format: {v}"
+                )))?;
                 usage_location.local_sub_district = Some(captured["string"].to_string());
                 usage_location.field = Some(captured["num"].parse()?);
             }
@@ -121,14 +121,10 @@ fn parse_usage_location(
                 let rate = format!("{value} {unit}");
                 match kind {
                     "Entnahmemenge" => {
-                        usage_location
-                            .withdrawal_rate
-                            .insert(Rate::from_str(&rate)?);
+                        usage_location.withdrawal_rate.insert(Rate::from_str(&rate)?);
                     }
                     "Einleitungsmenge" => {
-                        usage_location
-                            .injection_rate
-                            .insert(Rate::from_str(&rate)?);
+                        usage_location.injection_rate.insert(Rate::from_str(&rate)?);
                     }
                     a => return Err(anyhow::Error::msg(format!("unknown allow value: {a:?}")))
                 }

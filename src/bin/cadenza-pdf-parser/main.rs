@@ -185,7 +185,7 @@ async fn main() -> ExitCode {
                     &mut water_right.valid_to,
                     &mut water_right.valid_from,
                     &mut water_right.first_grant,
-                    &mut water_right.date_of_change,
+                    &mut water_right.date_of_change
                 ] {
                     let Some(date) = date_opt.as_ref()
                     else {
