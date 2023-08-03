@@ -149,16 +149,7 @@ async fn main() {
 
 async fn fetch(water_right_no: WaterRightNo, client: &reqwest::Client) -> anyhow::Result<()> {
     let report_link = req::fetch_report_url(water_right_no, client).await?;
-
-    let full_report_link = format!(
-        "{}{}",
-        CONFIG.cadenza.url,
-        report_link
-            .split("/cadenza/")
-            .nth(1)
-            .ok_or(anyhow::Error::msg("report link has no '/cadenza/' in path"))?
-    );
-    let pdf_bytes = client.get(&full_report_link).send().await?.bytes().await?;
+    let pdf_bytes = client.get(&report_link).send().await?.bytes().await?;
     fs::write(
         format!("{}/rep{}.pdf", CONFIG.data.reports, water_right_no),
         pdf_bytes

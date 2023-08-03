@@ -1,9 +1,16 @@
+use lazy_static::lazy_static;
 use nlwkn_rs::WaterRightNo;
+use regex::Regex;
 
 static CADENZA_ROOT: &str = crate::CONFIG.cadenza.root;
 static CADENZA_URL: &str = crate::CONFIG.cadenza.url;
 const USER_AGENT: &str =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0";
+
+lazy_static! {
+    static ref REPORT_URL_RE: Regex =
+        Regex::new(r"\?file=rep(?<report_id>\d+)\.pdf").expect("valid regex");
+}
 
 pub async fn fetch_report_url(
     water_right_no: WaterRightNo,
@@ -59,12 +66,19 @@ pub async fn fetch_report_url(
         }
     }
 
-    let report_url = finished_res
+    let download_url = finished_res
         .headers()
         .get("Location")
         .ok_or(anyhow::Error::msg("finish res has 'Location' header"))?;
-    let report_url = report_url.to_str()?;
-    let report_url = format!("{CADENZA_ROOT}{report_url}");
+    let download_url = download_url.to_str()?;
 
+    let captured = REPORT_URL_RE.captures(&download_url).ok_or(anyhow::Error::msg(
+        "download url does not contain report file id"
+    ))?;
+    let report_id = &captured["report_id"];
+    let report_url = format!(
+        "{CADENZA_URL}/pages/download/get;jsessionid={j_session_id}?file=rep{report_id}.pdf&\
+         mimetype=application/pdf"
+    );
     Ok(report_url)
 }
