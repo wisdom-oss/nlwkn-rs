@@ -19,11 +19,10 @@ use regex::Regex;
 use tokio::task::JoinHandle;
 
 use crate::parse::parse_document;
-use crate::util::OptionUpdate;
+use nlwkn_rs::util::OptionUpdate;
 
 mod intermediate;
 mod parse;
-mod util;
 
 lazy_static! {
     static ref REPORT_FILE_RE: Regex = Regex::new(r"^rep(?<no>\d+).pdf$").expect("valid regex");
@@ -74,7 +73,7 @@ async fn main() -> ExitCode {
 
     PROGRESS.set_style(SPINNER_STYLE.clone());
     PROGRESS.set_message("Parsing table...");
-    let cadenza_table = match CadenzaTable::from_path(&xlsx_path) {
+    let mut cadenza_table = match CadenzaTable::from_path(&xlsx_path) {
         Ok(table) => table,
         Err(err) => {
             progress_message(
@@ -87,6 +86,7 @@ async fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
+    cadenza_table.sanitize();
     let cadenza_table = Arc::new(cadenza_table);
 
     PROGRESS.set_style(PROGRESS_STYLE.clone());

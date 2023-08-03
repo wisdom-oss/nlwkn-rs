@@ -1,10 +1,11 @@
+use nlwkn_rs::util::StringOption;
 use nlwkn_rs::WaterRight;
 
 use crate::intermediate::key_value::KeyValuePair;
 
 pub fn parse_root(items: Vec<KeyValuePair>, water_right: &mut WaterRight) -> anyhow::Result<()> {
     for (key, values) in items {
-        let mut value = values.into_iter().next();
+        let mut value = values.into_iter().next().sanitize();
         match (key.as_str(), value.take()) {
             ("Wasserbuchbehörde", v) => water_right.water_authority = v,
             ("Kennziffer", Some(v)) => {

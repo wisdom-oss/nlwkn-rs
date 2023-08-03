@@ -1,11 +1,9 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
 use helper_types::*;
-use lazy_static::lazy_static;
-use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
@@ -14,7 +12,7 @@ use crate::util::data_structs;
 pub mod cadenza;
 pub mod cli;
 pub mod helper_types;
-mod util;
+pub mod util;
 
 pub type WaterRightNo = u64;
 
@@ -147,14 +145,16 @@ data_structs! {
         /// "Verordnungszitat"
         regulation_citation?: String,
 
-        // TODO: simplify this with Vec<(Amount, Unit, Time)>
         /// "Entnahmemenge"
+        #[serde(skip_serializing_if = "RateRecord::is_empty")]
         withdrawal_rate: RateRecord,
 
         /// "Einleitungsmenge"
+        #[serde(skip_serializing_if = "RateRecord::is_empty")]
         injection_rate: RateRecord,
 
         /// "Abwasservolumenstrom"
+        #[serde(skip_serializing_if = "RateRecord::is_empty")]
         waste_water_flow_volume: RateRecord,
 
         /// "Flussgebiet"
@@ -176,9 +176,11 @@ data_structs! {
         dam_target_levels?: DamTargets,
 
         /// "Ableitungsmenge"
+        #[serde(skip_serializing_if = "RateRecord::is_empty")]
         fluid_discharge: RateRecord,
 
         /// "Zusatzregen"
+        #[serde(skip_serializing_if = "RateRecord::is_empty")]
         rain_supplement: RateRecord,
 
         /// "Beregnungsfläche"
@@ -382,38 +384,4 @@ impl FromStr for LegalDepartmentAbbreviation {
     }
 }
 
-type RateRecord = HashMap<TimeDimension, DimensionedNumber>;
-
-lazy_static! {
-    static ref UNIT_RE: Regex =
-        Regex::new(r"^(?<measurement>[^/]+)/(?<factor>\d*)(?<time>\w+)$").expect("valid regex");
-}
-
-pub fn rate_entry_from_str(
-    value: &str,
-    unit: &str
-) -> anyhow::Result<(TimeDimension, DimensionedNumber)> {
-    let value: f64 = value.parse()?;
-
-    let unit_capture = UNIT_RE.captures(unit).ok_or(anyhow::Error::msg(format!(
-        "unit {unit:?} has invalid format"
-    )))?;
-    let unit = unit_capture["measurement"].to_string();
-    let factor: u64 = unit_capture["factor"].parse().unwrap_or(1);
-    let time = match &unit_capture["time"] {
-        "s" => TimeDimension::Seconds(factor),
-        "m" => TimeDimension::Minutes(factor),
-        "h" => TimeDimension::Hours(factor),
-        "d" => TimeDimension::Days(factor),
-        "w" => TimeDimension::Weeks(factor),
-        "M" | "mo" => TimeDimension::Months(factor),
-        "a" => TimeDimension::Years(factor),
-        unit => {
-            return Err(anyhow::Error::msg(format!(
-                "{unit} is a unknown time dimension"
-            )))
-        }
-    };
-
-    Ok((time, DimensionedNumber { value, unit }))
-}
+type RateRecord = BTreeSet<Rate<f64>>;

@@ -1,7 +1,10 @@
+use std::str::FromStr;
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use nlwkn_rs::{LegalDepartment, LegalDepartmentAbbreviation, UsageLocation, WaterRight};
 use regex::Regex;
+use nlwkn_rs::helper_types::Rate;
+use nlwkn_rs::util::StringOption;
 
 use crate::intermediate::key_value::KeyValuePair;
 
@@ -55,14 +58,8 @@ fn parse_usage_location(
 ) -> anyhow::Result<()> {
     for (key, values) in items {
         let mut values = values.into_iter();
-
-        let dash_as_none = |s: String| match s.as_str() {
-            "-" => None,
-            _ => Some(s)
-        };
-
-        let mut first = values.next().and_then(dash_as_none);
-        let mut second = values.next().and_then(dash_as_none);
+        let mut first = values.next().sanitize();
+        let mut second = values.next().sanitize();
 
         match (key.as_str(), first.take(), second.take()) {
             ("Nutzungsort Lfd. Nr.:", Some(v), _) => {
@@ -116,8 +113,7 @@ fn parse_usage_location(
                     split.next().ok_or(anyhow::Error::msg("'Erlaubniswert' has no specifier"))?;
                 match kind {
                     "Entnahmemenge" => {
-                        let (time_dim, dim_num) = nlwkn_rs::rate_entry_from_str(value, unit)?;
-                        usage_location.withdrawal_rate.insert(time_dim, dim_num);
+                        usage_location.withdrawal_rate.insert(Rate::from_str(format!("{value} {unit}").as_str())?);
                     }
                     a => return Err(anyhow::Error::msg(format!("unknown allow value: {a:?}")))
                 }

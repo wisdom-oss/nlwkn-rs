@@ -5,6 +5,7 @@ use calamine::{RangeDeserializerBuilder, Reader, Xlsx};
 use serde::{Deserialize, Deserializer};
 
 use crate::WaterRightNo;
+use crate::util::{OptionUpdate, StringOption};
 
 #[derive(Debug)]
 pub struct CadenzaTable(Vec<CadenzaTableRow>);
@@ -122,6 +123,32 @@ impl CadenzaTable {
     {
         self.0.dedup_by(same_bucket);
     }
+
+    pub fn sanitize(&mut self) {
+        for row in self.0.iter_mut() {
+            row.bailee = row.bailee.take().sanitize();
+            row.valid_to = row.valid_to.take().sanitize();
+            row.state = row.state.take().sanitize();
+            row.valid_from = row.valid_from.take().sanitize();
+            row.legal_departments = row.legal_departments.take().sanitize();
+            row.legal_title = row.legal_title.take().sanitize();
+            row.water_authority = row.water_authority.take().sanitize();
+            row.granting_authority = row.granting_authority.take().sanitize();
+            row.date_of_change = row.date_of_change.take().sanitize();
+            row.file_reference = row.file_reference.take().sanitize();
+            row.external_identifier = row.external_identifier.take().sanitize();
+            row.subject = row.subject.take().sanitize();
+            row.address = row.address.take().sanitize();
+            row.usage_location = row.usage_location.take().sanitize();
+            row.legal_scope = row.legal_scope.take().sanitize();
+            row.county = row.county.take().sanitize();
+            row.rivershed = row.rivershed.take().sanitize();
+            row.groundwater_volume = row.groundwater_volume.take().sanitize();
+            row.flood_area = row.flood_area.take().sanitize();
+            row.water_protection_area = row.water_protection_area.take().sanitize();
+        }
+    }
+
 }
 
 fn deserialize_date<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
