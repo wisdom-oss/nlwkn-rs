@@ -153,7 +153,18 @@ async fn main() -> ExitCode {
                     ul.utm_northing.update_if_none_clone(row.utm_northing.as_ref());
                 }
 
-                // TODO: sanitize annotations
+                // remove "Bemerkung: " from annotations if they begin with that
+                if let Some(annotation) = water_right.annotation {
+                    if annotation.starts_with("Bemerkung: ") {
+                        water_right.annotation = annotation
+                            .splitn(2, "Bemerkung: ")
+                            .nth(1)
+                            .expect("separator already checked")
+                            .to_owned()
+                            .into();
+                    }
+                }
+
                 // TODO: sanitize utm values
                 // TODO: fill granting if granting is missing but registered is set
                 // TODO: normalize dates
