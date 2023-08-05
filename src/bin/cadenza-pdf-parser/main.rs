@@ -17,7 +17,6 @@ use nlwkn_rs::cli::{progress_message, PROGRESS_STYLE, PROGRESS_UPDATE_INTERVAL, 
 use nlwkn_rs::util::{zero_is_none, OptionUpdate};
 use nlwkn_rs::{WaterRight, WaterRightNo};
 use regex::Regex;
-
 use tokio::task::JoinHandle;
 
 use crate::parse::parse_document;
@@ -100,14 +99,16 @@ async fn main() -> ExitCode {
     for (water_right_no, document) in reports {
         let cadenza_table = cadenza_table.clone();
         // TODO: move this tasks into own function
-        let task: JoinHandle<Result<WaterRight, (WaterRightNo, anyhow::Error)>> =
+        let task: JoinHandle<Result<(WaterRight, bool), (WaterRightNo, anyhow::Error)>> =
             tokio::spawn(async move {
                 let mut water_right = WaterRight::new(water_right_no);
                 if let Err(e) = parse_document(&mut water_right, document) {
                     return Err((water_right_no, e));
                 }
 
+                let mut enriched = false;
                 for row in cadenza_table.rows().iter().filter(|row| row.no == water_right_no) {
+                    enriched = true;
                     let wr = &mut water_right;
                     wr.bailee.update_if_none_clone(row.bailee.as_ref());
                     wr.valid_to.update_if_none_clone(row.valid_to.as_ref());
@@ -162,7 +163,9 @@ async fn main() -> ExitCode {
                 // remove "Bemerkung: " from annotations if they begin with that
                 if let Some(annotation) = water_right.annotation.as_ref() {
                     if annotation.starts_with("Bemerkung: ") {
-                        water_right.annotation = annotation.split_once("Bemerkung: ").map(|x| x.1)
+                        water_right.annotation = annotation
+                            .split_once("Bemerkung: ")
+                            .map(|x| x.1)
                             .expect("separator already checked")
                             .to_owned()
                             .into();
@@ -209,13 +212,14 @@ async fn main() -> ExitCode {
                     }
                 }
 
-                Ok(water_right)
+                Ok((water_right, enriched))
             });
 
         tasks.push(task);
     }
 
     let mut water_rights = Vec::with_capacity(cadenza_table.rows().capacity());
+    let mut pdf_only_water_rights = Vec::with_capacity(cadenza_table.rows().capacity());
     let mut parse_errors = BTreeMap::new();
     while let Some(task_res) = tasks.next().await {
         let parse_res = match task_res {
@@ -233,9 +237,12 @@ async fn main() -> ExitCode {
         };
 
         let _water_right_no = match parse_res {
-            Ok(water_right) => {
+            Ok((water_right, enriched)) => {
                 let no = water_right.no;
-                water_rights.push(water_right);
+                match enriched {
+                    true => water_rights.push(water_right),
+                    false => pdf_only_water_rights.push(water_right)
+                }
                 no
             }
 
@@ -291,6 +298,43 @@ async fn main() -> ExitCode {
             "Error",
             Color::Red,
             format!("could not write reports json, {e}")
+        );
+        PROGRESS.finish_and_clear();
+        return ExitCode::FAILURE;
+    }
+
+    // save pdf only reports
+
+    let pdf_only_reports_json_path = {
+        let mut path = data_path.clone();
+        path.push("pdf-only-reports.json");
+        path
+    };
+
+    #[cfg(debug_assertions)]
+    let pdf_only_reports_json = serde_json::to_string_pretty(&pdf_only_water_rights);
+    #[cfg(not(debug_assertions))]
+    let pdf_only_reports_json = serde_json::to_string(&pdf_only_water_rights);
+    let pdf_only_reports_json = match pdf_only_reports_json {
+        Ok(json) => json,
+        Err(e) => {
+            progress_message(
+                &PROGRESS,
+                "Error",
+                Color::Red,
+                format!("could not serialize pdf only water rights to json, {e}")
+            );
+            PROGRESS.finish_and_clear();
+            return ExitCode::FAILURE;
+        }
+    };
+
+    if let Err(e) = fs::write(&pdf_only_reports_json_path, pdf_only_reports_json) {
+        progress_message(
+            &PROGRESS,
+            "Error",
+            Color::Red,
+            format!("could not write pdf only reports json, {e}")
         );
         PROGRESS.finish_and_clear();
         return ExitCode::FAILURE;
