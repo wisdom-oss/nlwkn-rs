@@ -4,7 +4,7 @@ use std::path::Path;
 use calamine::{RangeDeserializerBuilder, Reader, Xlsx};
 use serde::{Deserialize, Deserializer};
 
-use crate::util::{StringOption};
+use crate::util::StringOption;
 use crate::WaterRightNo;
 
 #[derive(Debug)]
