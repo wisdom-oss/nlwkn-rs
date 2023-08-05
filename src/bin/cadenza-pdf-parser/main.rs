@@ -220,7 +220,7 @@ async fn main() -> ExitCode {
 
     let mut water_rights = Vec::with_capacity(cadenza_table.rows().capacity());
     let mut pdf_only_water_rights = Vec::with_capacity(cadenza_table.rows().capacity());
-    let mut parse_errors = BTreeMap::new();
+    let mut parse_issues = BTreeMap::new();
     while let Some(task_res) = tasks.next().await {
         let parse_res = match task_res {
             Ok(parse_res) => parse_res,
@@ -253,7 +253,7 @@ async fn main() -> ExitCode {
                     Color::Yellow,
                     format!("could not parse report for {water_right_no}, {err}, will be skipped")
                 );
-                parse_errors.insert(water_right_no, err.to_string());
+                parse_issues.insert(water_right_no, err.to_string());
                 water_right_no
             }
         };
@@ -375,34 +375,34 @@ async fn main() -> ExitCode {
         return ExitCode::FAILURE;
     }
 
-    // save parse errors
+    // save parse issues
 
-    let parse_errors_json = match serde_json::to_string_pretty(&parse_errors) {
+    let parse_issues_json = match serde_json::to_string_pretty(&parse_issues) {
         Ok(json) => json,
         Err(e) => {
             progress_message(
                 &PROGRESS,
                 "Error",
                 Color::Red,
-                format!("could not serialize parse errors to json, {e}")
+                format!("could not serialize parse issues to json, {e}")
             );
             PROGRESS.finish_and_clear();
             return ExitCode::FAILURE;
         }
     };
 
-    let parse_errors_path = {
+    let parse_issues_path = {
         let mut path = data_path.clone();
         path.push("parse-errors.json");
         path
     };
 
-    if let Err(e) = fs::write(parse_errors_path, parse_errors_json) {
+    if let Err(e) = fs::write(parse_issues_path, parse_issues_json) {
         progress_message(
             &PROGRESS,
             "Error",
             Color::Red,
-            format!("could not write parse errors json, {e}")
+            format!("could not write parse issues json, {e}")
         );
         PROGRESS.finish_and_clear();
         return ExitCode::FAILURE;
