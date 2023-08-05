@@ -1,11 +1,12 @@
 use std::collections::BTreeMap;
+use std::fmt::{Display, Formatter};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::Arc;
 
 use clap::Parser;
-use console::Color;
+use console::{Color, Style};
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use indicatif::ProgressBar;
@@ -57,7 +58,7 @@ async fn main() -> ExitCode {
     PROGRESS.set_style(SPINNER_STYLE.clone());
     PROGRESS.enable_steady_tick(PROGRESS_UPDATE_INTERVAL);
 
-    let (reports, _broken_reports) = match load_reports(report_dir) {
+    let (reports, broken_reports) = match load_reports(report_dir) {
         Ok(reports) => reports,
         Err(e) => {
             progress_message(
@@ -220,7 +221,7 @@ async fn main() -> ExitCode {
 
     let mut water_rights = Vec::with_capacity(cadenza_table.rows().capacity());
     let mut pdf_only_water_rights = Vec::with_capacity(cadenza_table.rows().capacity());
-    let mut parse_issues = BTreeMap::new();
+    let mut parsing_issues = BTreeMap::new();
     while let Some(task_res) = tasks.next().await {
         let parse_res = match task_res {
             Ok(parse_res) => parse_res,
@@ -253,7 +254,7 @@ async fn main() -> ExitCode {
                     Color::Yellow,
                     format!("could not parse report for {water_right_no}, {err}, will be skipped")
                 );
-                parse_issues.insert(water_right_no, err.to_string());
+                parsing_issues.insert(water_right_no, err.to_string());
                 water_right_no
             }
         };
@@ -343,7 +344,7 @@ async fn main() -> ExitCode {
     // save broken reports
 
     let broken_reports_json = match serde_json::to_string_pretty(
-        &_broken_reports.into_iter().map(|(no, _)| no).collect::<Vec<WaterRightNo>>()
+        &broken_reports.iter().map(|(no, _)| no).copied().collect::<Vec<WaterRightNo>>()
     ) {
         Ok(json) => json,
         Err(e) => {
@@ -364,7 +365,7 @@ async fn main() -> ExitCode {
         path
     };
 
-    if let Err(e) = fs::write(broken_reports_path, broken_reports_json) {
+    if let Err(e) = fs::write(&broken_reports_path, broken_reports_json) {
         progress_message(
             &PROGRESS,
             "Error",
@@ -375,47 +376,50 @@ async fn main() -> ExitCode {
         return ExitCode::FAILURE;
     }
 
-    // save parse issues
+    // save parsing issues
 
-    let parse_issues_json = match serde_json::to_string_pretty(&parse_issues) {
+    let parsing_issues_json = match serde_json::to_string_pretty(&parsing_issues) {
         Ok(json) => json,
         Err(e) => {
             progress_message(
                 &PROGRESS,
                 "Error",
                 Color::Red,
-                format!("could not serialize parse issues to json, {e}")
+                format!("could not serialize parsing issues to json, {e}")
             );
             PROGRESS.finish_and_clear();
             return ExitCode::FAILURE;
         }
     };
 
-    let parse_issues_path = {
+    let parsing_issues_path = {
         let mut path = data_path.clone();
-        path.push("parse-errors.json");
+        path.push("parsing-issues.json");
         path
     };
 
-    if let Err(e) = fs::write(parse_issues_path, parse_issues_json) {
+    if let Err(e) = fs::write(&parsing_issues_path, parsing_issues_json) {
         progress_message(
             &PROGRESS,
             "Error",
             Color::Red,
-            format!("could not write parse issues json, {e}")
+            format!("could not write parsing issues json, {e}")
         );
         PROGRESS.finish_and_clear();
         return ExitCode::FAILURE;
     }
 
     PROGRESS.finish_and_clear();
-    println!(
-        "{}{}{} {}",
-        console::style("Successfully parsed reports (").magenta(),
-        console::style(water_rights.len()).cyan(),
-        console::style(") written to").magenta(),
-        console::style(reports_json_path.display()).cyan()
-    );
+    eprintln!();
+    print!("{}", Report {
+        broken: (broken_reports.len(), broken_reports_path.display()),
+        parsing_issues: (parsing_issues.len(), parsing_issues_path.display()),
+        pdf_only: (
+            pdf_only_water_rights.len(),
+            pdf_only_reports_json_path.display()
+        ),
+        successful: (water_rights.len(), reports_json_path.display())
+    });
     ExitCode::SUCCESS
 }
 
@@ -477,4 +481,109 @@ fn load_reports(report_dir: impl AsRef<Path>) -> anyhow::Result<(Reports, Broken
     }
 
     Ok((reports, broken_reports))
+}
+
+struct Report<T0, T1, T2, T3> {
+    broken: (usize, T0),
+    parsing_issues: (usize, T1),
+    pdf_only: (usize, T2),
+    successful: (usize, T3)
+}
+
+impl<T0, T1, T2, T3> Display for Report<T0, T1, T2, T3>
+where
+    T0: Display,
+    T1: Display,
+    T2: Display,
+    T3: Display
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let description_style = Style::new().fg(Color::Yellow);
+        let category_style = Style::new().fg(Color::Magenta);
+        let key_style = Style::new().fg(Color::Cyan);
+        let equal_style = Style::new().fg(Color::White);
+        let num_value_style = Style::new().fg(Color::Magenta).bright();
+        let str_value_style = Style::new().fg(Color::Blue).bright();
+
+        let description_indicator = description_style.apply_to("#");
+        let identifier_open = category_style.apply_to("[");
+        let identifier_close = category_style.apply_to("]");
+        let count_key = key_style.apply_to("count");
+        let output_file_key = key_style.apply_to("output_file");
+        let equal_sign = equal_style.apply_to("=");
+        let string_indicator = str_value_style.apply_to("'");
+
+        let entries: &[(Vec<&str>, &str, usize, &dyn Display)] = &[
+            (
+                vec![
+                    "Broken PDF files which cannot be loaded.",
+                    "Could be due to corrupted or incompatible files.",
+                ],
+                "broken",
+                self.broken.0,
+                &self.broken.1
+            ),
+            (
+                vec![
+                    "Reports with parsing issues.",
+                    "First issue with it's respective water right number.",
+                ],
+                "parsing_issues",
+                self.parsing_issues.0,
+                &self.parsing_issues.1
+            ),
+            (
+                vec![
+                    "Reports where data could only be extracted from the PDF file.",
+                    "XLSX data might be missing.",
+                ],
+                "pdf_only",
+                self.pdf_only.0,
+                &self.pdf_only.1
+            ),
+            (
+                vec!["Reports parsed and enriched with both PDF and XLSX data."],
+                "reports",
+                self.successful.0,
+                &self.successful.1
+            )
+        ];
+
+        for (description, identifier, count, output_file) in entries {
+            for description in description {
+                writeln!(
+                    f,
+                    "{} {}",
+                    description_indicator,
+                    description_style.apply_to(description)
+                )?;
+            }
+            writeln!(
+                f,
+                "{}{}{}",
+                identifier_open,
+                category_style.apply_to(identifier),
+                identifier_close
+            )?;
+            writeln!(
+                f,
+                "{} {} {}",
+                count_key,
+                equal_sign,
+                num_value_style.apply_to(count)
+            )?;
+            writeln!(
+                f,
+                "{} {} {}{}{}",
+                output_file_key,
+                equal_sign,
+                string_indicator,
+                str_value_style.apply_to(output_file),
+                string_indicator
+            )?;
+            writeln!(f)?;
+        }
+
+        Ok(())
+    }
 }
