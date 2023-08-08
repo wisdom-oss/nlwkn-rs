@@ -1,5 +1,5 @@
-use nlwkn_rs::util::StringOption;
-use nlwkn_rs::WaterRight;
+use nlwkn::util::StringOption;
+use nlwkn::WaterRight;
 
 use crate::intermediate::key_value::KeyValuePair;
 

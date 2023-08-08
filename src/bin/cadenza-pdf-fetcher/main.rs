@@ -7,9 +7,9 @@ use std::time::Duration;
 use clap::Parser;
 use console::{Alignment, Color};
 use indicatif::ProgressBar;
-use nlwkn_rs::cadenza::{CadenzaTable, CadenzaTableRow};
-use nlwkn_rs::cli::{progress_message, ProgressBarGuard, PRINT_PADDING};
-use nlwkn_rs::WaterRightNo;
+use nlwkn::cadenza::{CadenzaTable, CadenzaTableRow};
+use nlwkn::cli::{progress_message, ProgressBarGuard, PRINT_PADDING};
+use nlwkn::WaterRightNo;
 use reqwest::redirect::Policy;
 
 use crate::tor::start_socks_proxy;
@@ -78,7 +78,7 @@ async fn main() {
     let mut unfetched_reports = Vec::new();
 
     let progress = ProgressBar::new(cadenza_table.rows().len() as u64)
-        .with_style(nlwkn_rs::cli::PROGRESS_STYLE.clone())
+        .with_style(nlwkn::cli::PROGRESS_STYLE.clone())
         .with_message("Fetching Reports");
     progress.enable_steady_tick(Duration::from_secs(1));
 

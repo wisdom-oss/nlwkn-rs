@@ -1,5 +1,5 @@
 use lazy_static::lazy_static;
-use nlwkn_rs::WaterRightNo;
+use nlwkn::WaterRightNo;
 use regex::Regex;
 
 static CADENZA_ROOT: &str = crate::CONFIG.cadenza.root;

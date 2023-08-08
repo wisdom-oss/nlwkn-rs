@@ -1967,7 +1967,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "nlwkn-rs"
+name = "nlwkn"
 version = "0.1.0"
 dependencies = [
  "anyhow",

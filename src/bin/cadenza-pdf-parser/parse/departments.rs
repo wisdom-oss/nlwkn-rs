@@ -2,9 +2,9 @@ use std::str::FromStr;
 
 use itertools::Itertools;
 use lazy_static::lazy_static;
-use nlwkn_rs::helper_types::Rate;
-use nlwkn_rs::util::StringOption;
-use nlwkn_rs::{LegalDepartment, LegalDepartmentAbbreviation, UsageLocation, WaterRight};
+use nlwkn::helper_types::Rate;
+use nlwkn::util::StringOption;
+use nlwkn::{LegalDepartment, LegalDepartmentAbbreviation, UsageLocation, WaterRight};
 use regex::Regex;
 
 use crate::intermediate::key_value::KeyValuePair;

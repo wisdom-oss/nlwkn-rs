@@ -1,5 +1,5 @@
 use lopdf::Document;
-use nlwkn_rs::WaterRight;
+use nlwkn::WaterRight;
 
 use crate::intermediate::grouped_key_value::GroupedKeyValueRepr;
 use crate::intermediate::key_value::KeyValueRepr;
