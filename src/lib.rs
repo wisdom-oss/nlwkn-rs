@@ -173,7 +173,8 @@ data_structs! {
         water_protection_area?: String,
 
         /// "Stauziele"
-        dam_target_levels?: DamTargets,
+        #[serde(skip_serializing_if = "DamTargets::is_empty")]
+        dam_target_levels: DamTargets,
 
         /// "Ableitungsmenge"
         #[serde(skip_serializing_if = "RateRecord::is_empty")]
@@ -211,6 +212,8 @@ data_structs! {
 
     /// Targets the dam should be at.
     #[skip_serializing_none]
+    #[non_exhaustive]
+    #[derive(Default)]
     struct DamTargets {
         default?: DimensionedNumber,
 
@@ -223,6 +226,7 @@ data_structs! {
 
     #[serde(rename_all = "camelCase")]
     #[skip_serializing_none]
+    #[non_exhaustive]
     struct Solids {
         /// "Abfiltrierbare Stoffe"
         filterable?: DescriptiveNumber,
@@ -314,7 +318,7 @@ impl UsageLocation {
             water_body: None,
             flood_area: None,
             water_protection_area: None,
-            dam_target_levels: None,
+            dam_target_levels: DamTargets::default(),
             fluid_discharge: Default::default(),
             rain_supplement: Default::default(),
             irrigation_area: None,
@@ -385,3 +389,9 @@ impl FromStr for LegalDepartmentAbbreviation {
 }
 
 type RateRecord = BTreeSet<Rate<f64>>;
+
+impl DamTargets {
+    pub fn is_empty(&self) -> bool {
+        self.steady.is_none() && self.max.is_none() && self.default.is_none()
+    }
+}

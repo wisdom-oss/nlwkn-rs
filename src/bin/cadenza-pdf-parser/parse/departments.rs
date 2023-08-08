@@ -126,6 +126,32 @@ fn parse_usage_location(
                     "Einleitungsmenge" => {
                         usage_location.injection_rate.insert(Rate::from_str(&rate)?);
                     }
+                    "Stauziel, bezogen auf NN" => {
+                        usage_location
+                            .dam_target_levels
+                            .default
+                            .replace((value.parse()?, unit.to_string()).into());
+                    }
+                    "Stauziel (Höchststau), bezogen auf NN" => {
+                        usage_location
+                            .dam_target_levels
+                            .max
+                            .replace((value.parse()?, unit.to_string()).into());
+                    }
+                    "Stauziel (Dauerstau), bezogen auf NN" => {
+                        usage_location
+                            .dam_target_levels
+                            .steady
+                            .replace((value.parse()?, unit.to_string()).into());
+                    }
+                    "Abwasservolumenstrom, Sekunde" |
+                    "Abwasservolumenstrom, RW, Sekunde" |
+                    "Abwasservolumenstrom, Std." |
+                    "Abwasservolumenstrom, Tag" |
+                    "Abwasservolumenstrom, Jahr" |
+                    "Abwasservolumenstrom, RW, Jahr" => {
+                        usage_location.waste_water_flow_volume.insert(Rate::from_str(&rate)?);
+                    }
                     a => return Err(anyhow::Error::msg(format!("unknown allow value: {a:?}")))
                 }
             }

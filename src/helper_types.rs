@@ -230,17 +230,30 @@ impl Ord for TimeDimension {
 }
 
 data_structs! {
-    /// A number that has a unit.
-    struct DimensionedNumber {
-        value: f64,
-        unit: String,
-    }
-
     /// A number that has a unit and a description.
     struct DescriptiveNumber {
         value: f64,
         unit: String,
         description?: String,
+    }
+}
+
+/// A number that has a unit.
+#[derive(Debug, Deserialize)]
+pub struct DimensionedNumber {
+    pub value: f64,
+    pub unit: String
+}
+
+impl Serialize for DimensionedNumber {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+        (&self.value, &self.unit).serialize(serializer)
+    }
+}
+
+impl From<(f64, String)> for DimensionedNumber {
+    fn from((value, unit): (f64, String)) -> Self {
+        DimensionedNumber { value, unit }
     }
 }
 
