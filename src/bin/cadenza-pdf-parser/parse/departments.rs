@@ -155,6 +155,15 @@ fn parse_usage_location(
                     "Abwasservolumenstrom, RW, Jahr" => {
                         usage_location.waste_water_flow_volume.insert(Rate::from_str(&rate)?);
                     }
+                    "Beregnungsfläche" => {
+                        usage_location.irrigation_area.replace((value.parse()?, unit.to_string()).into());
+                    }
+                    "Zusatzregen" => {
+                        usage_location.rain_supplement.insert(Rate::from_str(&rate)?);
+                    }
+                    "Ableitungsmenge" => {
+                        usage_location.fluid_discharge.insert(Rate::from_str(&rate)?);
+                    }
                     a => return Err(anyhow::Error::msg(format!("unknown allow value: {a:?}")))
                 }
             }
