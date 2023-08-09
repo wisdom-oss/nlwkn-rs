@@ -116,7 +116,7 @@ data_structs! {
 
         /// "Top. Karte 1:25.000"
         #[serde(rename = "topMap1:25000")]
-        top_map_1_25000?: (u64, String),
+        top_map_1_25000?: SingleOrPair<u64, String>,
 
         /// "Gemeindegebiet"
         municipal_area?: (u64, String),
