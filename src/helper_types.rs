@@ -312,7 +312,7 @@ impl<'de, P0, P1, S> Deserialize<'de> for SingleOrPair<P0, P1, S>
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum OrFallback<T> {
     Expected(T),
     Fallback(String)

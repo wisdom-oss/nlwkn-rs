@@ -363,7 +363,7 @@ impl FromStr for LegalDepartmentAbbreviation {
     }
 }
 
-type RateRecord = BTreeSet<Rate<f64>>;
+type RateRecord = BTreeSet<OrFallback<Rate<f64>>>;
 
 impl DamTargets {
     pub fn is_empty(&self) -> bool {

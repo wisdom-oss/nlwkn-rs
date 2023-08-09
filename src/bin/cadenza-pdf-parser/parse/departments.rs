@@ -129,17 +129,21 @@ fn parse_usage_location(
                 let kind =
                     split.next().ok_or(anyhow::Error::msg("'Erlaubniswert' has no specifier"))?;
                 let rate = format!("{value} {unit}");
+                let rate = match Rate::from_str(&rate) {
+                    Ok(rate) => OrFallback::Expected(rate),
+                    Err(_) => OrFallback::Fallback(rate)
+                };
 
                 use LegalDepartmentAbbreviation::*;
                 match kind {
-                    "Entnahmemenge" => {
-                        usage_location.withdrawal_rate.insert(Rate::from_str(&rate)?);
+                    "Entnahmemenge" =>  {
+                        usage_location.withdrawal_rate.insert(rate);
                     }
                     "Förderleistung" => {
-                        usage_location.pumping_rate.insert(Rate::from_str(&rate)?);
+                        usage_location.pumping_rate.insert(rate);
                     }
                     "Einleitungsmenge" => {
-                        usage_location.injection_rate.insert(Rate::from_str(&rate)?);
+                        usage_location.injection_rate.insert(rate);
                     }
                     "Stauziel, bezogen auf NN" => {
                         usage_location
@@ -165,18 +169,18 @@ fn parse_usage_location(
                     "Abwasservolumenstrom, Tag" |
                     "Abwasservolumenstrom, Jahr" |
                     "Abwasservolumenstrom, RW, Jahr" => {
-                        usage_location.waste_water_flow_volume.insert(Rate::from_str(&rate)?);
+                        usage_location.waste_water_flow_volume.insert(rate);
                     }
                     "Beregnungsfläche" => {
                         usage_location.irrigation_area.replace((value.parse()?, unit.to_string()).into());
                     }
                     "Zusatzregen" => {
-                        usage_location.rain_supplement.insert(Rate::from_str(&rate)?);
+                        usage_location.rain_supplement.insert(rate);
                     }
                     "Ableitungsmenge" => {
-                        usage_location.fluid_discharge.insert(Rate::from_str(&rate)?);
+                        usage_location.fluid_discharge.insert(rate);
                     }
-                    a if matches!(department, B | F) => {
+                    a if matches!(department, B | C | F) => {
                         usage_location.inject_allowance.push((
                             a.to_string(),
                             DimensionedNumber {value: value.parse()?, unit: unit.to_string()}
