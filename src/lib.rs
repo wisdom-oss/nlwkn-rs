@@ -124,11 +124,8 @@ data_structs! {
         /// "Landkreis"
         county?: String,
 
-        /// "Gemarkung"
-        local_sub_district?: String,
-
-        /// "Flur"
-        field?: u64,
+        /// "Gemarkung, Flur"
+        land_record?: OrFallback<LandRecord>,
 
         /// "Flurstück"
         plot?: String,
@@ -206,6 +203,12 @@ data_structs! {
         utm_northing?: u64,
     }
 
+    #[serde(rename_all = "camelCase")]
+    struct LandRecord {
+        register_district: String,
+        field_number: u32,
+    }
+
     /// pH values of the water.
     #[skip_serializing_none]
     struct PHValues {
@@ -275,8 +278,7 @@ impl UsageLocation {
             top_map_1_25000: None,
             municipal_area: None,
             county: None,
-            local_sub_district: None,
-            field: None,
+            land_record: None,
             plot: None,
             maintenance_association: None,
             eu_survey_area: None,

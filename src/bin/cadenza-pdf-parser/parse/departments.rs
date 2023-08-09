@@ -2,9 +2,9 @@ use std::str::FromStr;
 
 use itertools::Itertools;
 use lazy_static::lazy_static;
-use nlwkn::helper_types::{DimensionedNumber, Rate, SingleOrPair};
+use nlwkn::helper_types::{DimensionedNumber, OrFallback, Rate, SingleOrPair};
 use nlwkn::util::StringOption;
-use nlwkn::{LegalDepartment, LegalDepartmentAbbreviation, UsageLocation, WaterRight};
+use nlwkn::{LandRecord, LegalDepartment, LegalDepartmentAbbreviation, UsageLocation, WaterRight};
 use regex::Regex;
 
 use crate::intermediate::key_value::KeyValuePair;
@@ -94,11 +94,13 @@ fn parse_usage_location(
             ("Gemarkung, Flur:", None, None) => (),
             ("Gemarkung, Flur:", Some(v), _) => {
                 let v = v.replace(' ', "");
-                let captured = STRING_NUM_RE.captures(&v).ok_or(anyhow::Error::msg(format!(
-                    "'Gemarkung, Flur' has invalid format: {v}"
-                )))?;
-                usage_location.local_sub_district = Some(captured["string"].to_string());
-                usage_location.field = Some(captured["num"].parse()?);
+                match STRING_NUM_RE.captures(&v).ok_or(anyhow::Error::msg(format!("'Gemarkung, Flur' has invalid format: {v}"))) {
+                    Ok(captured) => usage_location.land_record.replace(LandRecord {
+                        register_district: captured["string"].to_string(),
+                        field_number: captured["num"].parse()?
+                    }.into()),
+                    Err(_) => usage_location.land_record.replace(OrFallback::Fallback(v))
+                };
             }
             ("Unterhaltungsverband:", None, None) => (),
             ("Unterhaltungsverband:", Some(num), Some(s)) => {
