@@ -4,7 +4,7 @@ use lopdf::{Object, StringFormat};
 const ENCODING: &str = "WinAnsiEncoding";
 
 #[derive(Debug)]
-pub struct TextBlockRepr(pub Vec<TextBlock>);
+pub struct TextBlockRepr(pub Vec<Vec<TextBlock>>);
 
 #[derive(Debug, Default)]
 pub struct TextBlock {
@@ -20,9 +20,10 @@ impl TryFrom<lopdf::Document> for TextBlockRepr {
     type Error = anyhow::Error;
 
     fn try_from(document: lopdf::Document) -> anyhow::Result<Self> {
-        let mut text_blocks = Vec::new();
+        let mut text_blocks_list = Vec::new();
         let mut text_block: Option<TextBlock> = None;
         for page_object_id in document.page_iter() {
+            let mut text_blocks = Vec::new();
             for Operation { operator, operands } in
                 document.get_and_decode_page_content(page_object_id)?.operations.iter()
             {
@@ -49,9 +50,10 @@ impl TryFrom<lopdf::Document> for TextBlockRepr {
                     _ => ()
                 }
             }
+            text_blocks_list.push(text_blocks);
         }
 
-        Ok(TextBlockRepr(text_blocks))
+        Ok(TextBlockRepr(text_blocks_list))
     }
 }
 
