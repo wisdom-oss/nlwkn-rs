@@ -1,4 +1,5 @@
 use std::iter::Peekable;
+use itertools::Itertools;
 
 use crate::intermediate::key_value::{KeyValuePair, KeyValueRepr};
 
@@ -11,19 +12,27 @@ pub struct GroupedKeyValueRepr {
 
 impl From<KeyValueRepr> for GroupedKeyValueRepr {
     fn from(mut key_value_repr: KeyValueRepr) -> Self {
-        // check if last pair may be the annotation
-        let annotation = match key_value_repr.0.pop() {
-            None => None,
-            Some((key, values)) if values.is_empty() => Some(key),
-            Some(entry) => {
-                key_value_repr.0.push(entry);
-                None
+        // take the last keys as annotation of the values of them are empty
+        let mut annotation: Vec<String> = Vec::new();
+        for (key, values) in key_value_repr.0.iter().rev() {
+            match values.is_empty() {
+                true => annotation.push(key.clone()),
+                false => break
             }
+        }
+
+        // remove these keys
+        for _ in annotation.iter() {
+            key_value_repr.0.pop();
+        }
+
+        let annotation = match annotation.is_empty() {
+            true => None,
+            false => Some(annotation.into_iter().rev().join(" "))
         };
 
-        let mut key_value_repr_iter = key_value_repr.0.into_iter().peekable();
-
         let mut root = Vec::new();
+        let mut key_value_repr_iter = key_value_repr.0.into_iter().peekable();
         while key_value_repr_iter.peek().map(|(key, _)| key != "Abteilung:").unwrap_or(false) {
             if let Some(pair) = key_value_repr_iter.next() {
                 root.push(pair);

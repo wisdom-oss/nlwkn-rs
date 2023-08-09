@@ -162,8 +162,9 @@ async fn main() -> ExitCode {
                 }
 
                 // remove "Bemerkung: " from annotations if they begin with that
-                if let Some(annotation) = water_right.annotation.as_ref() {
-                    if annotation.starts_with("Bemerkung: ") {
+                match water_right.annotation.as_ref() {
+                    Some(annotation) if annotation == "Bemerkung:" => water_right.annotation = None,
+                    Some(annotation) if annotation.starts_with("Bemerkung: ") => {
                         water_right.annotation = annotation
                             .split_once("Bemerkung: ")
                             .map(|x| x.1)
@@ -171,6 +172,7 @@ async fn main() -> ExitCode {
                             .to_owned()
                             .into();
                     }
+                    _ => ()
                 }
 
                 // fill granting authority if registering authority is set but not granting, the
