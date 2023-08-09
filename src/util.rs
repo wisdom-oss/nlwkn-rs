@@ -83,3 +83,19 @@ pub fn zero_is_none(value: u64) -> Option<u64> {
         _ => Some(value)
     }
 }
+
+pub trait Near {
+    type Rhs;
+    const THRESHOLD: f64;
+
+    fn is_near(&self, other: &Self::Rhs) -> bool;
+}
+
+impl Near for f64 {
+    type Rhs = f64;
+    const THRESHOLD: Self = 0.001;
+
+    fn is_near(&self, other: &Self::Rhs) -> bool {
+        (self - other).abs() < Self::THRESHOLD
+    }
+}

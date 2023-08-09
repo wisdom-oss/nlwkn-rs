@@ -10,6 +10,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_with::{DeserializeAs, OneOrMany, Same};
 
 use crate::util::data_structs;
+use crate::util::Near;
 
 #[derive(Debug)]
 pub struct Rate<T> {
@@ -78,7 +79,7 @@ where
 
 lazy_static! {
     static ref UNIT_RE: Regex =
-        Regex::new(r"^(?<measurement>[^/]+)/(?<factor>\d*)(?<time>\w+)$").expect("valid regex");
+        Regex::new(r"^(?<measurement>[^/]+)/(?<factor>[\d\.,]*)(?<time>\w+)$").expect("valid regex");
 }
 
 // TODO: make this more generic
@@ -97,7 +98,7 @@ impl FromStr for Rate<f64> {
             "unit {unit:?} has invalid format"
         )))?;
         let measurement = unit_capture["measurement"].to_string();
-        let factor: u64 = unit_capture["factor"].parse().unwrap_or(1);
+        let factor: f64 = unit_capture["factor"].parse().unwrap_or(1f64);
         let time = match &unit_capture["time"] {
             "s" => TimeDimension::Seconds(factor),
             "m" | "min" => TimeDimension::Minutes(factor),
@@ -121,32 +122,32 @@ impl FromStr for Rate<f64> {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Hash)]
+#[derive(Debug)]
 pub enum TimeDimension {
-    Seconds(u64),
-    Minutes(u64),
-    Hours(u64),
-    Days(u64),
-    Weeks(u64),
-    Months(u64),
-    Years(u64)
+    Seconds(f64),
+    Minutes(f64),
+    Hours(f64),
+    Days(f64),
+    Weeks(f64),
+    Months(f64),
+    Years(f64)
 }
 
 impl TimeDimension {
     /// Rough conversion to seconds.
     ///
     /// Imprecise for dimensions larger than weeks.
-    pub fn as_secs(&self) -> u64 {
+    pub fn as_secs(&self) -> f64 {
         use TimeDimension::*;
 
         match self {
             Seconds(s) => *s,
-            Minutes(m) => *m * 60,
-            Hours(h) => *h * 60 * 60,
-            Days(d) => *d * 24 * 60 * 60,
-            Weeks(w) => *w * 7 * 24 * 60 * 60,
-            Months(m) => *m * 30 * 24 * 60 * 60,
-            Years(y) => *y * 365 * 24 * 60 * 60
+            Minutes(m) => *m * 60.0,
+            Hours(h) => *h * 60.0 * 60.0,
+            Days(d) => *d * 24.0 * 60.0 * 60.0,
+            Weeks(w) => *w * 7.0 * 24.0 * 60.0 * 60.0,
+            Months(m) => *m * 30.0 * 24.0 * 60.0 * 60.0,
+            Years(y) => *y * 365.0 * 24.0 * 60.0 * 60.0
         }
     }
 }
@@ -157,25 +158,25 @@ impl Serialize for TimeDimension {
         S: Serializer
     {
         let s: Cow<'_, str> = match self {
-            TimeDimension::Seconds(1) => "s".into(),
+            TimeDimension::Seconds(v) if v.is_near(&1.0) => "s".into(),
             TimeDimension::Seconds(v) => format!("{v}s").into(),
 
-            TimeDimension::Minutes(1) => "m".into(),
+            TimeDimension::Minutes(v) if v.is_near(&1.0) => "m".into(),
             TimeDimension::Minutes(v) => format!("{v}m").into(),
 
-            TimeDimension::Hours(1) => "h".into(),
+            TimeDimension::Hours(v) if v.is_near(&1.0) => "h".into(),
             TimeDimension::Hours(v) => format!("{v}h").into(),
 
-            TimeDimension::Days(1) => "d".into(),
+            TimeDimension::Days(v) if v.is_near(&1.0) => "d".into(),
             TimeDimension::Days(v) => format!("{v}d").into(),
 
-            TimeDimension::Weeks(1) => "w".into(),
+            TimeDimension::Weeks(v) if v.is_near(&1.0) => "w".into(),
             TimeDimension::Weeks(v) => format!("{v}wo").into(),
 
-            TimeDimension::Months(1) => "mo".into(),
+            TimeDimension::Months(v) if v.is_near(&1.0) => "mo".into(),
             TimeDimension::Months(v) => format!("{v}mo").into(),
 
-            TimeDimension::Years(1) => "a".into(),
+            TimeDimension::Years(v) if v.is_near(&1.0) => "a".into(),
             TimeDimension::Years(v) => format!("{v}a").into()
         };
 
@@ -200,7 +201,7 @@ impl<'de> Deserialize<'de> for TimeDimension {
 
         let value = &captured["value"];
         let value = match value.is_empty() {
-            true => 1,
+            true => 1f64,
             false => value.parse().expect("only digits in here")
         };
 
@@ -218,6 +219,14 @@ impl<'de> Deserialize<'de> for TimeDimension {
     }
 }
 
+impl PartialEq for TimeDimension {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_secs() == other.as_secs()
+    }
+}
+
+impl Eq for TimeDimension {}
+
 impl PartialOrd for TimeDimension {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
@@ -226,7 +235,8 @@ impl PartialOrd for TimeDimension {
 
 impl Ord for TimeDimension {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.as_secs().cmp(&other.as_secs())
+
+        self.as_secs().partial_cmp(&other.as_secs()).expect("should never be NaN")
     }
 }
 
