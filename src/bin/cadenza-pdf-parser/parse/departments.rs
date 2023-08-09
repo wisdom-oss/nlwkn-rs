@@ -111,7 +111,7 @@ fn parse_usage_location(
                 usage_location.basin_no = Some(SingleOrPair::Single(num.parse()?))
             }
             ("Einzugsgebietskennzahl:", Some(num), Some(s)) => {
-                usage_location.basin_no = Some(SingleOrPair::Pair(num.parse()?, s))
+                usage_location.basin_no = Some(SingleOrPair::Pair(num.replace(" ", "").parse()?, s))
             }
             ("Verordnungszitat:", v, _) => usage_location.regulation_citation = v,
             ("Erlaubniswert:", Some(v), _) => {
