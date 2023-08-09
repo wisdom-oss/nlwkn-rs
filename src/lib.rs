@@ -148,6 +148,10 @@ data_structs! {
         /// "Entnahmemenge"
         #[serde(skip_serializing_if = "RateRecord::is_empty")]
         withdrawal_rate: RateRecord,
+        
+        /// "Förderleistung"
+        #[serde(skip_serializing_if = "RateRecord::is_empty")]
+        pumping_rate: RateRecord,
 
         /// "Einleitungsmenge"
         #[serde(skip_serializing_if = "RateRecord::is_empty")]
@@ -311,6 +315,7 @@ impl UsageLocation {
             basin_no: None,
             regulation_citation: None,
             withdrawal_rate: Default::default(),
+            pumping_rate: Default::default(),
             injection_rate: Default::default(),
             waste_water_flow_volume: Default::default(),
             rivershed: None,

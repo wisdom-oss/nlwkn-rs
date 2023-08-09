@@ -126,6 +126,9 @@ fn parse_usage_location(
                     "Entnahmemenge" => {
                         usage_location.withdrawal_rate.insert(Rate::from_str(&rate)?);
                     }
+                    "Förderleistung" => {
+                        usage_location.pumping_rate.insert(Rate::from_str(&rate)?);
+                    }
                     "Einleitungsmenge" => {
                         usage_location.injection_rate.insert(Rate::from_str(&rate)?);
                     }
