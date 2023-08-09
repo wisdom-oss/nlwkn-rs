@@ -7,6 +7,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use serde::de::{DeserializeOwned, Error, SeqAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde_json::Value;
 use serde_with::{DeserializeAs, OneOrMany, Same};
 
 use crate::util::data_structs;
@@ -307,6 +308,37 @@ impl<'de, P0, P1, S> Deserialize<'de> for SingleOrPair<P0, P1, S>
             (Some(s), None, None) => Ok(SingleOrPair::Single(serde_json::from_value(s).map_err(D::Error::custom)?)),
             (Some(p0), Some(p1), None) => Ok(SingleOrPair::Pair(serde_json::from_value(p0).map_err(D::Error::custom)?, serde_json::from_value(p1).map_err(D::Error::custom)?)),
             _ => Err(D::Error::custom("must be either a single value or a pair")),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum OrFallback<T> {
+    Expected(T),
+    Fallback(String)
+}
+
+impl<T> From<T> for OrFallback<T> {
+    fn from(value: T) -> Self {
+        OrFallback::Expected(value)
+    }
+}
+
+impl<T> Serialize for OrFallback<T> where T: Serialize {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+        match self {
+            OrFallback::Expected(expected) => expected.serialize(serializer),
+            OrFallback::Fallback(fallback) => fallback.serialize(serializer)
+        }
+    }
+}
+
+impl<'de, T> Deserialize<'de> for OrFallback<T> where T: DeserializeOwned {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
+        let fallback: String = String::deserialize(deserializer)?;
+        match serde_json::from_value::<T>(Value::String(fallback.clone())) {
+            Ok(value) => Ok(OrFallback::Expected(value)),
+            Err(_) => Ok(OrFallback::Fallback(fallback))
         }
     }
 }
