@@ -148,7 +148,7 @@ data_structs! {
         /// "Entnahmemenge"
         #[serde(skip_serializing_if = "RateRecord::is_empty")]
         withdrawal_rate: RateRecord,
-        
+
         /// "Förderleistung"
         #[serde(skip_serializing_if = "RateRecord::is_empty")]
         pumping_rate: RateRecord,

@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 use std::fs;
+use std::iter::Filter;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::Arc;
@@ -39,14 +40,19 @@ struct Args {
 
     /// Path to data directory
     #[arg(default_value = "data")]
-    data_path: PathBuf
+    data_path: PathBuf,
+
+    /// Parse specific water right number report
+    #[arg(long = "no")]
+    water_right_no: Option<WaterRightNo>
 }
 
 #[tokio::main]
 async fn main() -> ExitCode {
     let Args {
         xlsx_path,
-        data_path
+        data_path,
+        water_right_no: arg_no
     } = Args::parse();
 
     let report_dir = {
@@ -58,7 +64,7 @@ async fn main() -> ExitCode {
     PROGRESS.set_style(SPINNER_STYLE.clone());
     PROGRESS.enable_steady_tick(PROGRESS_UPDATE_INTERVAL);
 
-    let (reports, broken_reports) = match load_reports(report_dir) {
+    let (reports, broken_reports) = match load_reports(report_dir, arg_no) {
         Ok(reports) => reports,
         Err(e) => {
             progress_message(
@@ -97,6 +103,10 @@ async fn main() -> ExitCode {
     PROGRESS.set_prefix("🚀");
 
     let mut tasks = FuturesUnordered::new();
+    let reports = reports.into_iter().filter(|(rep_no, _)| match arg_no {
+        Some(arg_no) => *rep_no == arg_no,
+        None => true
+    });
     for (water_right_no, document) in reports {
         let cadenza_table = cadenza_table.clone();
         // TODO: move this tasks into own function
@@ -427,7 +437,7 @@ async fn main() -> ExitCode {
 
 type Reports = Vec<(WaterRightNo, Document)>;
 type BrokenReports = Vec<(WaterRightNo, lopdf::Error)>;
-fn load_reports(report_dir: impl AsRef<Path>) -> anyhow::Result<(Reports, BrokenReports)> {
+fn load_reports(report_dir: impl AsRef<Path>, selected: Option<WaterRightNo>) -> anyhow::Result<(Reports, BrokenReports)> {
     PROGRESS.set_message("Counting reports...");
     let entry_count = fs::read_dir(&report_dir)?.count();
     let read_dir = fs::read_dir(report_dir)?;
@@ -456,12 +466,14 @@ fn load_reports(report_dir: impl AsRef<Path>) -> anyhow::Result<(Reports, Broken
             continue;
         };
         let water_right_no: WaterRightNo = captured["no"].parse()?;
-
         PROGRESS.set_prefix(water_right_no.to_string());
 
-        match Document::load(dir_entry.path()) {
-            Ok(document) => reports.push((water_right_no, document)),
-            Err(err) => broken_reports.push((water_right_no, err))
+        match selected {
+            Some(selected) if selected != water_right_no => (),
+            _ => match Document::load(dir_entry.path()) {
+                Ok(document) => reports.push((water_right_no, document)),
+                Err(err) => broken_reports.push((water_right_no, err))
+            }
         }
 
         PROGRESS.inc(1);
