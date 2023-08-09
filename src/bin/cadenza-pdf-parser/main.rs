@@ -47,6 +47,8 @@ struct Args {
     water_right_no: Option<WaterRightNo>
 }
 
+// TODO: add edge case handling input
+
 #[tokio::main]
 async fn main() -> ExitCode {
     let Args {
