@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use itertools::Itertools;
 use lazy_static::lazy_static;
-use nlwkn::helper_types::Rate;
+use nlwkn::helper_types::{Rate, SingleOrPair};
 use nlwkn::util::StringOption;
 use nlwkn::{LegalDepartment, LegalDepartmentAbbreviation, UsageLocation, WaterRight};
 use regex::Regex;
@@ -107,8 +107,11 @@ fn parse_usage_location(
             }
             ("Gewässer:", v, _) => usage_location.water_body = v,
             ("Einzugsgebietskennzahl:", None, None) => (),
+            ("Einzugsgebietskennzahl:", Some(num), None) => {
+                usage_location.basin_no = Some(SingleOrPair::Single(num.parse()?))
+            }
             ("Einzugsgebietskennzahl:", Some(num), Some(s)) => {
-                usage_location.basin_no = Some((num.parse()?, s))
+                usage_location.basin_no = Some(SingleOrPair::Pair(num.parse()?, s))
             }
             ("Verordnungszitat:", v, _) => usage_location.regulation_citation = v,
             ("Erlaubniswert:", Some(v), _) => {

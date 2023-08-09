@@ -1,10 +1,11 @@
 use std::borrow::Cow;
 use std::cmp::Ordering;
+use std::fmt::{Formatter, Write};
 use std::str::FromStr;
 
 use lazy_static::lazy_static;
 use regex::Regex;
-use serde::de::Error;
+use serde::de::{DeserializeOwned, Error, SeqAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_with::{DeserializeAs, OneOrMany, Same};
 
@@ -258,47 +259,44 @@ impl From<(f64, String)> for DimensionedNumber {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub enum OptionalPair<T> {
-    Single(T),
-    Pair(T, T)
+pub enum SingleOrPair<P0, P1 = P0, S = P0> {
+    Single(S),
+    Pair(P0, P1)
 }
 
-impl<T> Serialize for OptionalPair<T>
+impl<P0, P1, S> Serialize for SingleOrPair<P0, P1, S>
 where
-    T: Serialize
+    P0: Serialize,
+    P1: Serialize,
+    S: Serialize
 {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<SE>(&self, serializer: SE) -> Result<SE::Ok, SE::Error>
     where
-        S: Serializer
+        SE: Serializer
     {
-        use OptionalPair::*;
+        use SingleOrPair::*;
 
         match self {
-            Single(v) => v.serialize(serializer),
+            Single(v) => [v].serialize(serializer),
             Pair(a, b) => (a, b).serialize(serializer)
         }
     }
 }
 
-impl<'de, T> Deserialize<'de> for OptionalPair<T>
-where
-    T: Deserialize<'de>
+impl<'de, P0, P1, S> Deserialize<'de> for SingleOrPair<P0, P1, S>
+    where S: DeserializeOwned, P0: DeserializeOwned, P1: DeserializeOwned
 {
+
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>
     {
-        let items: Vec<T> = OneOrMany::<Same>::deserialize_as(deserializer)?;
+        let items: Vec<serde_json::Value> = Vec::deserialize(deserializer)?;
         let mut items = items.into_iter();
-        let first = items.next();
-        let second = items.next();
-        let third = items.next();
-
-        match (first, second, third) {
-            (None, _, _) => Err(serde::de::Error::custom("pair must not be empty")),
-            (_, _, Some(_)) => Err(serde::de::Error::custom("pairs mut not exceed 2 elements")),
-            (Some(v), None, _) => Ok(OptionalPair::Single(v)),
-            (Some(a), Some(b), _) => Ok(OptionalPair::Pair(a, b))
+        match (items.next(), items.next(), items.next()) {
+            (Some(s), None, None) => Ok(SingleOrPair::Single(serde_json::from_value(s).map_err(D::Error::custom)?)),
+            (Some(p0), Some(p1), None) => Ok(SingleOrPair::Pair(serde_json::from_value(p0).map_err(D::Error::custom)?, serde_json::from_value(p1).map_err(D::Error::custom)?)),
+            _ => Err(D::Error::custom("must be either a single value or a pair")),
         }
     }
 }
@@ -307,13 +305,13 @@ where
 mod tests {
     use super::*;
 
-    const SINGLE_DE: OptionalPair<u32> = OptionalPair::Single(69);
-    const PAIR_DE: OptionalPair<u32> = OptionalPair::Pair(69, 420);
+    const SINGLE_DE: SingleOrPair<u32> = SingleOrPair::Single(69);
+    const PAIR_DE: SingleOrPair<u32> = SingleOrPair::Pair(69, 420);
 
-    const SINGLE_SER: &str = "69";
+    const SINGLE_SER: &str = "[69]";
     const PAIR_SER: &str = "[69,420]";
 
-    type T = OptionalPair<u32>;
+    type T = SingleOrPair<u32>;
 
     #[test]
     fn serde_optional_pair() {

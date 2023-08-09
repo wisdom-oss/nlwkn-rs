@@ -140,7 +140,7 @@ data_structs! {
         eu_survey_area?: (u64, String),
 
         /// "Einzugsgebietskennzahl"
-        basin_no?: (u64, String),
+        basin_no?: SingleOrPair<u64, String>,
 
         /// "Verordnungszitat"
         regulation_citation?: String,
