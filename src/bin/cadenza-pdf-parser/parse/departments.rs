@@ -26,7 +26,7 @@ pub fn parse_departments(
             .to_string();
 
         let mut legal_department = LegalDepartment::new(abbreviation, description);
-        parse_usage_locations(usage_locations, &mut legal_department)?;
+        parse_usage_locations(usage_locations, &mut legal_department, abbreviation)?;
         water_right.legal_departments.insert(abbreviation, legal_department);
     }
 
@@ -35,11 +35,12 @@ pub fn parse_departments(
 
 fn parse_usage_locations(
     usage_locations: Vec<Vec<KeyValuePair>>,
-    legal_department: &mut LegalDepartment
+    legal_department: &mut LegalDepartment,
+    department: LegalDepartmentAbbreviation
 ) -> anyhow::Result<()> {
     for usage_location_items in usage_locations {
         let mut usage_location = UsageLocation::new();
-        parse_usage_location(usage_location_items, &mut usage_location)?;
+        parse_usage_location(usage_location_items, &mut usage_location, department)?;
         legal_department.usage_locations.push(usage_location);
     }
 
@@ -55,7 +56,8 @@ lazy_static! {
 
 fn parse_usage_location(
     items: Vec<KeyValuePair>,
-    usage_location: &mut UsageLocation
+    usage_location: &mut UsageLocation,
+    department: LegalDepartmentAbbreviation
 ) -> anyhow::Result<()> {
     for (key, values) in items {
         let mut values = values.into_iter();
@@ -122,6 +124,8 @@ fn parse_usage_location(
                 let kind =
                     split.next().ok_or(anyhow::Error::msg("'Erlaubniswert' has no specifier"))?;
                 let rate = format!("{value} {unit}");
+
+                use LegalDepartmentAbbreviation::*;
                 match kind {
                     "Entnahmemenge" => {
                         usage_location.withdrawal_rate.insert(Rate::from_str(&rate)?);
@@ -166,6 +170,12 @@ fn parse_usage_location(
                     }
                     "Ableitungsmenge" => {
                         usage_location.fluid_discharge.insert(Rate::from_str(&rate)?);
+                    }
+                    a if matches!(department, B | F) => {
+                        usage_location.inject_allowance.push((
+                            a.to_string(),
+                            DimensionedNumber {value: value.parse()?, unit: unit.to_string()}
+                        ));
                     }
                     a => return Err(anyhow::Error::msg(format!("unknown allow value: {a:?}")))
                 }

@@ -191,14 +191,13 @@ data_structs! {
         /// "Beregnungsfläche"
         irrigation_area?: DimensionedNumber,
 
-        // TODO: check if this is still necessary or if HashMap would be better
         /// "pH-Werte"
         #[serde(rename = "pHValues")]
         ph_values?: PHValues,
 
-        // TODO: check if this is still necessary or if HashMap would be better
-        /// "Feststoffe"
-        solid?: Solids,
+        /// "Erlaubniswert" for legal department B
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        inject_allowance: Vec<(String, DimensionedNumber)>,
 
         /// "UTM-Rechtswert"
         utm_easting?: u64,
@@ -226,37 +225,6 @@ data_structs! {
 
         /// "Höchststau"
         max?: DimensionedNumber,
-    }
-
-    #[serde(rename_all = "camelCase")]
-    #[skip_serializing_none]
-    #[non_exhaustive]
-    struct Solids {
-        /// "Abfiltrierbare Stoffe"
-        filterable?: DescriptiveNumber,
-
-        /// "Absetzbare Stoffe"
-        settleable?: DescriptiveNumber,
-
-        /// "Chlor, freies ( maßanalytisch )"
-        chlorine_free_analytical?: DescriptiveNumber,
-
-        /// "CSB"
-        cod?: DescriptiveNumber,
-
-        /// "BSB5"
-        bod?: DescriptiveNumber,
-
-        /// "Gesamtphosphat-Phosphor"
-        total_phosphate_phosphorus?: DescriptiveNumber,
-
-        /// "Ammoniumstickstoff"
-        ammonium_nitrogen?: DescriptiveNumber,
-
-        /// "Stickstoff, anorganisch"
-        nitrogen_inorganic?: DescriptiveNumber,
-
-        nitrate_nitrogen?: DescriptiveNumber,
     }
 }
 
@@ -328,7 +296,7 @@ impl UsageLocation {
             rain_supplement: Default::default(),
             irrigation_area: None,
             ph_values: None,
-            solid: None,
+            inject_allowance: Default::default(),
             utm_easting: None,
             utm_northing: None
         }
