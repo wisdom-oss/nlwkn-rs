@@ -251,12 +251,12 @@ data_structs! {
 
 /// A number that has a unit.
 #[derive(Debug, Deserialize)]
-pub struct DimensionedNumber {
+pub struct Quantity {
     pub value: f64,
     pub unit: String
 }
 
-impl Serialize for DimensionedNumber {
+impl Serialize for Quantity {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer
@@ -265,9 +265,9 @@ impl Serialize for DimensionedNumber {
     }
 }
 
-impl From<(f64, String)> for DimensionedNumber {
+impl From<(f64, String)> for Quantity {
     fn from((value, unit): (f64, String)) -> Self {
-        DimensionedNumber { value, unit }
+        Quantity { value, unit }
     }
 }
 

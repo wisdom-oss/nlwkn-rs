@@ -186,7 +186,7 @@ data_structs! {
         rain_supplement: RateRecord,
 
         /// "Beregnungsfläche"
-        irrigation_area?: DimensionedNumber,
+        irrigation_area?: Quantity,
 
         /// "pH-Werte"
         #[serde(rename = "pHValues")]
@@ -194,7 +194,7 @@ data_structs! {
 
         /// "Erlaubniswert" for legal department B
         #[serde(skip_serializing_if = "Vec::is_empty")]
-        inject_allowance: Vec<(String, DimensionedNumber)>,
+        inject_allowance: Vec<(String, Quantity)>,
 
         /// "UTM-Rechtswert"
         utm_easting?: u64,
@@ -221,13 +221,13 @@ data_structs! {
     #[non_exhaustive]
     #[derive(Default)]
     struct DamTargets {
-        default?: DimensionedNumber,
+        default?: Quantity,
 
         /// "Dauertstau"
-        steady?: DimensionedNumber,
+        steady?: Quantity,
 
         /// "Höchststau"
-        max?: DimensionedNumber,
+        max?: Quantity,
     }
 }
 

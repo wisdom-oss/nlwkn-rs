@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use itertools::Itertools;
 use lazy_static::lazy_static;
-use nlwkn::helper_types::{DimensionedNumber, OrFallback, Rate, SingleOrPair};
+use nlwkn::helper_types::{Quantity, OrFallback, Rate, SingleOrPair};
 use nlwkn::util::StringOption;
 use nlwkn::{LandRecord, LegalDepartment, LegalDepartmentAbbreviation, UsageLocation, WaterRight};
 use regex::Regex;
@@ -190,7 +190,7 @@ fn parse_usage_location(
                         usage_location.fluid_discharge.insert(rate);
                     }
                     a if matches!(department, B | C | F) => {
-                        usage_location.inject_allowance.push((a.to_string(), DimensionedNumber {
+                        usage_location.inject_allowance.push((a.to_string(), Quantity {
                             value: value.parse()?,
                             unit: unit.to_string()
                         }));
