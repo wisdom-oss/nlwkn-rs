@@ -156,152 +156,26 @@ async fn main() -> ExitCode {
         PROGRESS.inc(1);
     }
 
-    // TODO: put following code into clear functions
-
-    // save parsed reports
-
     PROGRESS.set_style(SPINNER_STYLE.clone());
     PROGRESS.set_message("Saving results...");
-
-    let reports_json_path = {
-        let mut path = data_path.clone();
-        path.push("reports.json");
-        path
-    };
-
-    #[cfg(debug_assertions)]
-    let reports_json = serde_json::to_string_pretty(&water_rights);
-    #[cfg(not(debug_assertions))]
-    let reports_json = serde_json::to_string(&water_rights);
-    let reports_json = match reports_json {
-        Ok(json) => json,
+    let ResultPaths {
+        broken_reports_path,
+        parsing_issues_path,
+        pdf_only_reports_path,
+        reports_path
+    } = match save_results(&data_path, &water_rights, &pdf_only_water_rights, &broken_reports, &parsing_issues) {
+        Ok(paths) => paths,
         Err(e) => {
             progress_message(
                 &PROGRESS,
                 "Error",
                 Color::Red,
-                format!("could not serialize water rights to json, {e}")
+                e
             );
             PROGRESS.finish_and_clear();
             return ExitCode::FAILURE;
         }
     };
-
-    if let Err(e) = fs::write(&reports_json_path, reports_json) {
-        progress_message(
-            &PROGRESS,
-            "Error",
-            Color::Red,
-            format!("could not write reports json, {e}")
-        );
-        PROGRESS.finish_and_clear();
-        return ExitCode::FAILURE;
-    }
-
-    // save pdf only reports
-
-    let pdf_only_reports_json_path = {
-        let mut path = data_path.clone();
-        path.push("pdf-only-reports.json");
-        path
-    };
-
-    #[cfg(debug_assertions)]
-    let pdf_only_reports_json = serde_json::to_string_pretty(&pdf_only_water_rights);
-    #[cfg(not(debug_assertions))]
-    let pdf_only_reports_json = serde_json::to_string(&pdf_only_water_rights);
-    let pdf_only_reports_json = match pdf_only_reports_json {
-        Ok(json) => json,
-        Err(e) => {
-            progress_message(
-                &PROGRESS,
-                "Error",
-                Color::Red,
-                format!("could not serialize pdf only water rights to json, {e}")
-            );
-            PROGRESS.finish_and_clear();
-            return ExitCode::FAILURE;
-        }
-    };
-
-    if let Err(e) = fs::write(&pdf_only_reports_json_path, pdf_only_reports_json) {
-        progress_message(
-            &PROGRESS,
-            "Error",
-            Color::Red,
-            format!("could not write pdf only reports json, {e}")
-        );
-        PROGRESS.finish_and_clear();
-        return ExitCode::FAILURE;
-    }
-
-    // save broken reports
-
-    let broken_reports_json = match serde_json::to_string_pretty(
-        &broken_reports.iter().map(|(no, _)| no).copied().collect::<Vec<WaterRightNo>>()
-    ) {
-        Ok(json) => json,
-        Err(e) => {
-            progress_message(
-                &PROGRESS,
-                "Error",
-                Color::Red,
-                format!("could not serialize broken reports to json, {e}")
-            );
-            PROGRESS.finish_and_clear();
-            return ExitCode::FAILURE;
-        }
-    };
-
-    let broken_reports_path = {
-        let mut path = data_path.clone();
-        path.push("broken-reports.json");
-        path
-    };
-
-    if let Err(e) = fs::write(&broken_reports_path, broken_reports_json) {
-        progress_message(
-            &PROGRESS,
-            "Error",
-            Color::Red,
-            format!("could not write broken reports json, {e}")
-        );
-        PROGRESS.finish_and_clear();
-        return ExitCode::FAILURE;
-    }
-
-    // save parsing issues
-
-    let parsing_issues_json = match serde_json::to_string_pretty(&parsing_issues) {
-        Ok(json) => json,
-        Err(e) => {
-            progress_message(
-                &PROGRESS,
-                "Error",
-                Color::Red,
-                format!("could not serialize parsing issues to json, {e}")
-            );
-            PROGRESS.finish_and_clear();
-            return ExitCode::FAILURE;
-        }
-    };
-
-    let parsing_issues_path = {
-        let mut path = data_path.clone();
-        path.push("parsing-issues.json");
-        path
-    };
-
-    if let Err(e) = fs::write(&parsing_issues_path, parsing_issues_json) {
-        progress_message(
-            &PROGRESS,
-            "Error",
-            Color::Red,
-            format!("could not write parsing issues json, {e}")
-        );
-        PROGRESS.finish_and_clear();
-        return ExitCode::FAILURE;
-    }
 
     PROGRESS.finish_and_clear();
     eprintln!();
@@ -310,15 +184,16 @@ async fn main() -> ExitCode {
         parsing_issues: (parsing_issues.len(), parsing_issues_path.display()),
         pdf_only: (
             pdf_only_water_rights.len(),
-            pdf_only_reports_json_path.display()
+            pdf_only_reports_path.display()
         ),
-        successful: (water_rights.len(), reports_json_path.display())
+        successful: (water_rights.len(), reports_path.display())
     });
     ExitCode::SUCCESS
 }
 
 type Reports = Vec<(WaterRightNo, Document)>;
 type BrokenReports = Vec<(WaterRightNo, lopdf::Error)>;
+#[inline]
 fn load_reports(
     report_dir: impl AsRef<Path>,
     selected: Option<WaterRightNo>
@@ -382,6 +257,7 @@ fn load_reports(
     Ok((reports, broken_reports))
 }
 
+#[inline]
 fn parsing_task(
     water_right_no: WaterRightNo,
     report_doc: Document,
@@ -499,6 +375,106 @@ fn parsing_task(
         }
 
         Ok((water_right, enriched))
+    })
+}
+
+struct ResultPaths {
+    pub broken_reports_path: PathBuf,
+    pub parsing_issues_path: PathBuf,
+    pub pdf_only_reports_path: PathBuf,
+    pub reports_path: PathBuf
+}
+#[inline]
+fn save_results(
+    data_path: &Path,
+    water_rights: &[WaterRight],
+    pdf_only_water_rights: &[WaterRight],
+    broken_reports: &BrokenReports,
+    parsing_issues: &BTreeMap<WaterRightNo, String>
+) -> Result<ResultPaths, String> {
+    // save parsed reports
+
+    let reports_json_path = {
+        let mut path: PathBuf = data_path.clone().into();
+        path.push("reports.json");
+        path
+    };
+
+    #[cfg(debug_assertions)]
+        let reports_json = serde_json::to_string_pretty(water_rights);
+    #[cfg(not(debug_assertions))]
+        let reports_json = serde_json::to_string(&water_rights);
+    let reports_json = match reports_json {
+        Ok(json) => json,
+        Err(e) => return Err(format!("could not serialize water rights to json, {e}"))
+    };
+
+    if let Err(e) = fs::write(&reports_json_path, reports_json) {
+        return Err(format!("could not write reports json, {e}"));
+    }
+
+    // save pdf only reports
+
+    let pdf_only_reports_json_path = {
+        let mut path: PathBuf = data_path.clone().into();
+        path.push("pdf-only-reports.json");
+        path
+    };
+
+    #[cfg(debug_assertions)]
+        let pdf_only_reports_json = serde_json::to_string_pretty(pdf_only_water_rights);
+    #[cfg(not(debug_assertions))]
+        let pdf_only_reports_json = serde_json::to_string(&pdf_only_water_rights);
+    let pdf_only_reports_json = match pdf_only_reports_json {
+        Ok(json) => json,
+        Err(e) => return Err(format!("could not serialize pdf only water rights to json, {e}"))
+    };
+
+    if let Err(e) = fs::write(&pdf_only_reports_json_path, pdf_only_reports_json) {
+        return Err(format!("could not write pdf only reports json, {e}"));
+    }
+
+    // save broken reports
+
+    let broken_reports_json = match serde_json::to_string_pretty(
+        &broken_reports.iter().map(|(no, _)| no).copied().collect::<Vec<WaterRightNo>>()
+    ) {
+        Ok(json) => json,
+        Err(e) => return Err(format!("could not serialize broken reports to json, {e}"))
+    };
+
+    let broken_reports_path = {
+        let mut path: PathBuf = data_path.clone().into();
+        path.push("broken-reports.json");
+        path
+    };
+
+    if let Err(e) = fs::write(&broken_reports_path, broken_reports_json) {
+        return Err(format!("could not write broken reports json, {e}"));
+    }
+
+    // save parsing issues
+
+    let parsing_issues_json = match serde_json::to_string_pretty(&parsing_issues) {
+        Ok(json) => json,
+        Err(e) => return Err(format!("could not serialize parsing issues to json, {e}"))
+    };
+
+    let parsing_issues_path = {
+        let mut path: PathBuf = data_path.clone().into();
+        path.push("parsing-issues.json");
+        path
+    };
+
+    if let Err(e) = fs::write(&parsing_issues_path, parsing_issues_json) {
+        return Err(format!("could not write parsing issues json, {e}"));
+    }
+
+    Ok(ResultPaths {
+        broken_reports_path,
+        parsing_issues_path,
+        pdf_only_reports_path: pdf_only_reports_json_path,
+        reports_path: reports_json_path,
     })
 }
 
