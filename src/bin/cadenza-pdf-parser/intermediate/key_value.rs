@@ -17,11 +17,12 @@ impl From<TextBlockRepr> for KeyValueRepr {
                     x,
                     ..
                 } = text_block
-                    else {
-                        continue;
-                    };
+                else {
+                    continue;
+                };
 
-                let Some(x) = x else {
+                let Some(x) = x
+                else {
                     panic!("x missing");
                 };
                 let x = x.floor() as u32;
@@ -32,10 +33,16 @@ impl From<TextBlockRepr> for KeyValueRepr {
                         // found value without key on page
                         // iterate on pairs in reverse to find where the value could belong and
                         // add it
-                        let s = pairs.iter_mut().rev().map(|(_, values)| values).flatten().find(|(key_x, _)| *key_x == x).expect("line break without existing previous line?");
+                        let s = pairs
+                            .iter_mut()
+                            .rev()
+                            .map(|(_, values)| values)
+                            .flatten()
+                            .find(|(key_x, _)| *key_x == x)
+                            .expect("line break without existing previous line?");
                         s.1.push(' ');
                         s.1.push_str(&content);
-                    },
+                    }
                     ("F3" | "F2", Some(entry)) => entry.1.push((x, content)),
                     ("F1", Some(_)) => {
                         pairs.push(entry.take().expect("is some"));
@@ -50,6 +57,11 @@ impl From<TextBlockRepr> for KeyValueRepr {
             }
         }
 
-        KeyValueRepr(pairs.into_iter().map(|(key, values)| (key, values.into_iter().map(|(_, v)| v).collect())).collect())
+        KeyValueRepr(
+            pairs
+                .into_iter()
+                .map(|(key, values)| (key, values.into_iter().map(|(_, v)| v).collect()))
+                .collect()
+        )
     }
 }

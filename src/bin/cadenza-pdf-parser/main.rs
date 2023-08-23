@@ -439,7 +439,10 @@ async fn main() -> ExitCode {
 
 type Reports = Vec<(WaterRightNo, Document)>;
 type BrokenReports = Vec<(WaterRightNo, lopdf::Error)>;
-fn load_reports(report_dir: impl AsRef<Path>, selected: Option<WaterRightNo>) -> anyhow::Result<(Reports, BrokenReports)> {
+fn load_reports(
+    report_dir: impl AsRef<Path>,
+    selected: Option<WaterRightNo>
+) -> anyhow::Result<(Reports, BrokenReports)> {
     PROGRESS.set_message("Counting reports...");
     let entry_count = fs::read_dir(&report_dir)?.count();
     let read_dir = fs::read_dir(report_dir)?;

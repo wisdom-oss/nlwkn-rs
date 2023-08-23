@@ -93,6 +93,7 @@ pub trait Near {
 
 impl Near for f64 {
     type Rhs = f64;
+
     const THRESHOLD: Self = 0.001;
 
     fn is_near(&self, other: &Self::Rhs) -> bool {

@@ -81,10 +81,12 @@ fn parse_usage_location(
             ("East und North:", Some(v), _) => usage_location.utm_easting = Some(v.parse()?),
             ("Top. Karte 1:25.000:", None, None) => (),
             ("Top. Karte 1:25.000:", Some(num), None) => {
-                usage_location.top_map_1_25000 = Some(SingleOrPair::Single(num.replace(" ", "").parse()?))
+                usage_location.top_map_1_25000 =
+                    Some(SingleOrPair::Single(num.replace(" ", "").parse()?))
             }
             ("Top. Karte 1:25.000:", Some(num), Some(s)) => {
-                usage_location.top_map_1_25000 = Some(SingleOrPair::Pair(num.replace(" ", "").parse()?, s))
+                usage_location.top_map_1_25000 =
+                    Some(SingleOrPair::Pair(num.replace(" ", "").parse()?, s))
             }
             ("(ETRS89/UTM 32N)", Some(v), _) => usage_location.utm_northing = Some(v.parse()?),
             ("Gemeindegebiet:", None, None) => (),
@@ -94,11 +96,16 @@ fn parse_usage_location(
             ("Gemarkung, Flur:", None, None) => (),
             ("Gemarkung, Flur:", Some(v), _) => {
                 let v = v.replace(' ', "");
-                match STRING_NUM_RE.captures(&v).ok_or(anyhow::Error::msg(format!("'Gemarkung, Flur' has invalid format: {v}"))) {
-                    Ok(captured) => usage_location.land_record.replace(LandRecord {
-                        register_district: captured["string"].to_string(),
-                        field_number: captured["num"].parse()?
-                    }.into()),
+                match STRING_NUM_RE.captures(&v).ok_or(anyhow::Error::msg(format!(
+                    "'Gemarkung, Flur' has invalid format: {v}"
+                ))) {
+                    Ok(captured) => usage_location.land_record.replace(
+                        LandRecord {
+                            register_district: captured["string"].to_string(),
+                            field_number: captured["num"].parse()?
+                        }
+                        .into()
+                    ),
                     Err(_) => usage_location.land_record.replace(OrFallback::Fallback(v))
                 };
             }
@@ -136,7 +143,7 @@ fn parse_usage_location(
 
                 use LegalDepartmentAbbreviation::*;
                 match kind {
-                    "Entnahmemenge" =>  {
+                    "Entnahmemenge" => {
                         usage_location.withdrawal_rate.insert(rate);
                     }
                     "Förderleistung" => {
@@ -172,7 +179,9 @@ fn parse_usage_location(
                         usage_location.waste_water_flow_volume.insert(rate);
                     }
                     "Beregnungsfläche" => {
-                        usage_location.irrigation_area.replace((value.parse()?, unit.to_string()).into());
+                        usage_location
+                            .irrigation_area
+                            .replace((value.parse()?, unit.to_string()).into());
                     }
                     "Zusatzregen" => {
                         usage_location.rain_supplement.insert(rate);
@@ -181,10 +190,10 @@ fn parse_usage_location(
                         usage_location.fluid_discharge.insert(rate);
                     }
                     a if matches!(department, B | C | F) => {
-                        usage_location.inject_allowance.push((
-                            a.to_string(),
-                            DimensionedNumber {value: value.parse()?, unit: unit.to_string()}
-                        ));
+                        usage_location.inject_allowance.push((a.to_string(), DimensionedNumber {
+                            value: value.parse()?,
+                            unit: unit.to_string()
+                        }));
                     }
                     a => return Err(anyhow::Error::msg(format!("unknown allow value: {a:?}")))
                 }

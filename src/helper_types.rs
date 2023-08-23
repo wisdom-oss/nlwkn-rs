@@ -10,8 +10,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 use serde_with::{DeserializeAs, OneOrMany, Same};
 
-use crate::util::data_structs;
-use crate::util::Near;
+use crate::util::{data_structs, Near};
 
 #[derive(Debug)]
 pub struct Rate<T> {
@@ -80,7 +79,8 @@ where
 
 lazy_static! {
     static ref UNIT_RE: Regex =
-        Regex::new(r"^(?<measurement>[^/]+)/(?<factor>[\d\.,]*)(?<time>\w+)$").expect("valid regex");
+        Regex::new(r"^(?<measurement>[^/]+)/(?<factor>[\d\.,]*)(?<time>\w+)$")
+            .expect("valid regex");
 }
 
 // TODO: make this more generic
@@ -236,7 +236,6 @@ impl PartialOrd for TimeDimension {
 
 impl Ord for TimeDimension {
     fn cmp(&self, other: &Self) -> Ordering {
-
         self.as_secs().partial_cmp(&other.as_secs()).expect("should never be NaN")
     }
 }
@@ -258,7 +257,10 @@ pub struct DimensionedNumber {
 }
 
 impl Serialize for DimensionedNumber {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer
+    {
         (&self.value, &self.unit).serialize(serializer)
     }
 }
@@ -295,9 +297,11 @@ where
 }
 
 impl<'de, P0, P1, S> Deserialize<'de> for SingleOrPair<P0, P1, S>
-    where S: DeserializeOwned, P0: DeserializeOwned, P1: DeserializeOwned
+where
+    S: DeserializeOwned,
+    P0: DeserializeOwned,
+    P1: DeserializeOwned
 {
-
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>
@@ -305,9 +309,14 @@ impl<'de, P0, P1, S> Deserialize<'de> for SingleOrPair<P0, P1, S>
         let items: Vec<serde_json::Value> = Vec::deserialize(deserializer)?;
         let mut items = items.into_iter();
         match (items.next(), items.next(), items.next()) {
-            (Some(s), None, None) => Ok(SingleOrPair::Single(serde_json::from_value(s).map_err(D::Error::custom)?)),
-            (Some(p0), Some(p1), None) => Ok(SingleOrPair::Pair(serde_json::from_value(p0).map_err(D::Error::custom)?, serde_json::from_value(p1).map_err(D::Error::custom)?)),
-            _ => Err(D::Error::custom("must be either a single value or a pair")),
+            (Some(s), None, None) => Ok(SingleOrPair::Single(
+                serde_json::from_value(s).map_err(D::Error::custom)?
+            )),
+            (Some(p0), Some(p1), None) => Ok(SingleOrPair::Pair(
+                serde_json::from_value(p0).map_err(D::Error::custom)?,
+                serde_json::from_value(p1).map_err(D::Error::custom)?
+            )),
+            _ => Err(D::Error::custom("must be either a single value or a pair"))
         }
     }
 }
@@ -324,8 +333,14 @@ impl<T> From<T> for OrFallback<T> {
     }
 }
 
-impl<T> Serialize for OrFallback<T> where T: Serialize {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+impl<T> Serialize for OrFallback<T>
+where
+    T: Serialize
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer
+    {
         match self {
             OrFallback::Expected(expected) => expected.serialize(serializer),
             OrFallback::Fallback(fallback) => fallback.serialize(serializer)
@@ -333,8 +348,14 @@ impl<T> Serialize for OrFallback<T> where T: Serialize {
     }
 }
 
-impl<'de, T> Deserialize<'de> for OrFallback<T> where T: DeserializeOwned {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
+impl<'de, T> Deserialize<'de> for OrFallback<T>
+where
+    T: DeserializeOwned
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>
+    {
         let fallback: String = String::deserialize(deserializer)?;
         match serde_json::from_value::<T>(Value::String(fallback.clone())) {
             Ok(value) => Ok(OrFallback::Expected(value)),
