@@ -392,6 +392,8 @@ fn save_results(
     broken_reports: &BrokenReports,
     parsing_issues: &BTreeMap<WaterRightNo, String>
 ) -> Result<ResultPaths, String> {
+    // TODO: use multiple smaller functions for clarity
+
     // save parsed reports
 
     let reports_json_path = {
