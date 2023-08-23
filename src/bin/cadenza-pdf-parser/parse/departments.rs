@@ -122,10 +122,12 @@ fn parse_usage_location(
             ("Gewässer:", v, _) => usage_location.water_body = v,
             ("Einzugsgebietskennzahl:", None, None) => (),
             ("Einzugsgebietskennzahl:", Some(num), None) => {
-                usage_location.basin_code = Some(SingleOrPair::Single(num.replace(' ', "").parse()?))
+                usage_location.basin_code =
+                    Some(SingleOrPair::Single(num.replace(' ', "").parse()?))
             }
             ("Einzugsgebietskennzahl:", Some(num), Some(s)) => {
-                usage_location.basin_code = Some(SingleOrPair::Pair(num.replace(' ', "").parse()?, s))
+                usage_location.basin_code =
+                    Some(SingleOrPair::Pair(num.replace(' ', "").parse()?, s))
             }
             ("Verordnungszitat:", v, _) => usage_location.regulation_citation = v,
             ("Erlaubniswert:", Some(v), _) => {
