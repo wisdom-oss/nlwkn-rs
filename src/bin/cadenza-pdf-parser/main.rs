@@ -110,126 +110,7 @@ async fn main() -> ExitCode {
     });
     for (water_right_no, document) in reports {
         let cadenza_table = cadenza_table.clone();
-        // TODO: move this tasks into own function
-        let task: JoinHandle<Result<(WaterRight, bool), (WaterRightNo, anyhow::Error)>> =
-            tokio::spawn(async move {
-                let mut water_right = WaterRight::new(water_right_no);
-                if let Err(e) = parse_document(&mut water_right, document) {
-                    return Err((water_right_no, e));
-                }
-
-                let mut enriched = false;
-                for row in cadenza_table.rows().iter().filter(|row| row.no == water_right_no) {
-                    enriched = true;
-                    let wr = &mut water_right;
-                    wr.rights_holder.update_if_none_clone(row.rights_holder.as_ref());
-                    wr.valid_until.update_if_none_clone(row.valid_until.as_ref());
-                    wr.status.update_if_none_clone(row.status.as_ref());
-                    wr.valid_from.update_if_none_clone(row.valid_from.as_ref());
-                    wr.legal_title.update_if_none_clone(row.legal_title.as_ref());
-                    wr.water_authority.update_if_none_clone(row.water_authority.as_ref());
-                    wr.granting_authority.update_if_none_clone(row.granting_authority.as_ref());
-                    wr.date_of_change.update_if_none_clone(row.date_of_change.as_ref());
-                    wr.file_reference.update_if_none_clone(row.file_reference.as_ref());
-                    wr.external_identifier.update_if_none_clone(row.external_identifier.as_ref());
-                    wr.address.update_if_none_clone(row.address.as_ref());
-                }
-
-                for usage_location in water_right
-                    .legal_departments
-                    .iter_mut()
-                    .flat_map(|(_, department)| department.usage_locations.iter_mut())
-                {
-                    let Some(row) = cadenza_table.rows().iter().find(|row| {
-                        row.no == water_right_no &&
-                            usage_location.name.is_some() &&
-                            row.usage_location == usage_location.name
-                    })
-                    else {
-                        continue;
-                    };
-
-                    let ul = usage_location;
-                    ul.no.update_if_none(Some(row.usage_location_no));
-                    ul.legal_purpose.update_if_none_with(|| {
-                        row.legal_purpose.as_ref().and_then(|ls| {
-                            ls.splitn(2, ' ')
-                                .map(ToString::to_string)
-                                .collect_tuple::<(String, String)>()
-                        })
-                    });
-                    ul.county.update_if_none_clone(row.county.as_ref());
-                    ul.river_basin.update_if_none_clone(row.river_basin.as_ref());
-                    ul.groundwater_body.update_if_none_clone(row.groundwater_body.as_ref());
-                    ul.flood_area.update_if_none_clone(row.flood_area.as_ref());
-                    ul.water_protection_area
-                        .update_if_none_clone(row.water_protection_area.as_ref());
-                    ul.utm_easting.update_if_none_clone(row.utm_easting.as_ref());
-                    ul.utm_northing.update_if_none_clone(row.utm_northing.as_ref());
-
-                    // sanitize coordinates
-                    ul.utm_easting = ul.utm_easting.and_then(zero_is_none);
-                    ul.utm_northing = ul.utm_northing.and_then(zero_is_none);
-                }
-
-                // remove "Bemerkung: " from annotations if they begin with that
-                match water_right.annotation.as_ref() {
-                    Some(annotation) if annotation == "Bemerkung:" => water_right.annotation = None,
-                    Some(annotation) if annotation.starts_with("Bemerkung: ") => {
-                        water_right.annotation = annotation
-                            .split_once("Bemerkung: ")
-                            .map(|x| x.1)
-                            .expect("separator already checked")
-                            .to_owned()
-                            .into();
-                    }
-                    _ => ()
-                }
-
-                // fill granting authority if registering authority is set but not granting, the
-                // registering authority then also granted
-                if let (Some(register), None) = (
-                    water_right.registering_authority.as_ref(),
-                    water_right.granting_authority.as_ref()
-                ) {
-                    water_right.granting_authority = Some(register.to_string());
-                }
-
-                // normalize dates into ISO form
-                for date_opt in [
-                    &mut water_right.valid_until,
-                    &mut water_right.valid_from,
-                    &mut water_right.first_grant,
-                    &mut water_right.date_of_change
-                ] {
-                    let Some(date) = date_opt.as_ref()
-                    else {
-                        continue;
-                    };
-
-                    let mut split = date.split('.');
-                    let day = split.next();
-                    let month = split.next();
-                    let year = split.next();
-                    if split.next().is_some() {
-                        progress_message(
-                            &PROGRESS,
-                            "Warning",
-                            Color::Yellow,
-                            format!("a date in {water_right_no} has an invalid format")
-                        );
-                        continue;
-                    }
-
-                    if let (Some(day), Some(month), Some(year)) = (day, month, year) {
-                        let _ = date_opt.insert(format!("{year}-{month}-{day}"));
-                    }
-                }
-
-                Ok((water_right, enriched))
-            });
-
-        tasks.push(task);
+        tasks.push(parsing_task(water_right_no, document, cadenza_table));
     }
 
     let mut water_rights = Vec::with_capacity(cadenza_table.rows().capacity());
@@ -499,6 +380,126 @@ fn load_reports(
     }
 
     Ok((reports, broken_reports))
+}
+
+fn parsing_task(
+    water_right_no: WaterRightNo,
+    report_doc: Document,
+    cadenza_table: Arc<CadenzaTable>
+) -> JoinHandle<Result<(WaterRight, bool), (WaterRightNo, anyhow::Error)>> {
+    tokio::spawn(async move {
+        let mut water_right = WaterRight::new(water_right_no);
+        if let Err(e) = parse_document(&mut water_right, report_doc) {
+            return Err((water_right_no, e));
+        }
+
+        let mut enriched = false;
+        for row in cadenza_table.rows().iter().filter(|row| row.no == water_right_no) {
+            enriched = true;
+            let wr = &mut water_right;
+            wr.rights_holder.update_if_none_clone(row.rights_holder.as_ref());
+            wr.valid_until.update_if_none_clone(row.valid_until.as_ref());
+            wr.status.update_if_none_clone(row.status.as_ref());
+            wr.valid_from.update_if_none_clone(row.valid_from.as_ref());
+            wr.legal_title.update_if_none_clone(row.legal_title.as_ref());
+            wr.water_authority.update_if_none_clone(row.water_authority.as_ref());
+            wr.granting_authority.update_if_none_clone(row.granting_authority.as_ref());
+            wr.date_of_change.update_if_none_clone(row.date_of_change.as_ref());
+            wr.file_reference.update_if_none_clone(row.file_reference.as_ref());
+            wr.external_identifier.update_if_none_clone(row.external_identifier.as_ref());
+            wr.address.update_if_none_clone(row.address.as_ref());
+        }
+
+        for usage_location in water_right
+            .legal_departments
+            .iter_mut()
+            .flat_map(|(_, department)| department.usage_locations.iter_mut())
+        {
+            let Some(row) = cadenza_table.rows().iter().find(|row| {
+                row.no == water_right_no &&
+                    usage_location.name.is_some() &&
+                    row.usage_location == usage_location.name
+            })
+            else {
+                continue;
+            };
+
+            let ul = usage_location;
+            ul.no.update_if_none(Some(row.usage_location_no));
+            ul.legal_purpose.update_if_none_with(|| {
+                row.legal_purpose.as_ref().and_then(|ls| {
+                    ls.splitn(2, ' ').map(ToString::to_string).collect_tuple::<(String, String)>()
+                })
+            });
+            ul.county.update_if_none_clone(row.county.as_ref());
+            ul.river_basin.update_if_none_clone(row.river_basin.as_ref());
+            ul.groundwater_body.update_if_none_clone(row.groundwater_body.as_ref());
+            ul.flood_area.update_if_none_clone(row.flood_area.as_ref());
+            ul.water_protection_area.update_if_none_clone(row.water_protection_area.as_ref());
+            ul.utm_easting.update_if_none_clone(row.utm_easting.as_ref());
+            ul.utm_northing.update_if_none_clone(row.utm_northing.as_ref());
+
+            // sanitize coordinates
+            ul.utm_easting = ul.utm_easting.and_then(zero_is_none);
+            ul.utm_northing = ul.utm_northing.and_then(zero_is_none);
+        }
+
+        // remove "Bemerkung: " from annotations if they begin with that
+        match water_right.annotation.as_ref() {
+            Some(annotation) if annotation == "Bemerkung:" => water_right.annotation = None,
+            Some(annotation) if annotation.starts_with("Bemerkung: ") => {
+                water_right.annotation = annotation
+                    .split_once("Bemerkung: ")
+                    .map(|x| x.1)
+                    .expect("separator already checked")
+                    .to_owned()
+                    .into();
+            }
+            _ => ()
+        }
+
+        // fill granting authority if registering authority is set but not granting, the
+        // registering authority then also granted
+        if let (Some(register), None) = (
+            water_right.registering_authority.as_ref(),
+            water_right.granting_authority.as_ref()
+        ) {
+            water_right.granting_authority = Some(register.to_string());
+        }
+
+        // normalize dates into ISO form
+        for date_opt in [
+            &mut water_right.valid_until,
+            &mut water_right.valid_from,
+            &mut water_right.first_grant,
+            &mut water_right.date_of_change
+        ] {
+            let Some(date) = date_opt.as_ref()
+            else {
+                continue;
+            };
+
+            let mut split = date.split('.');
+            let day = split.next();
+            let month = split.next();
+            let year = split.next();
+            if split.next().is_some() {
+                progress_message(
+                    &PROGRESS,
+                    "Warning",
+                    Color::Yellow,
+                    format!("a date in {water_right_no} has an invalid format")
+                );
+                continue;
+            }
+
+            if let (Some(day), Some(month), Some(year)) = (day, month, year) {
+                let _ = date_opt.insert(format!("{year}-{month}-{day}"));
+            }
+        }
+
+        Ok((water_right, enriched))
+    })
 }
 
 struct Report<T0, T1, T2, T3> {
