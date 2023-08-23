@@ -4,11 +4,16 @@ version = "0.1.0"
 edition = "2021"
 publish = false
 
+[lib]
+path = "lib/src/lib.rs"
+
 [[bin]]
 name = "cadenza-pdf-fetcher"
+path = "fetcher/src/main.rs"
 
 [[bin]]
 name = "cadenza-pdf-parser"
+path = "parser/src/main.rs"
 
 [dependencies]
 # async runtime
