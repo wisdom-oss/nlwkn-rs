@@ -18,7 +18,8 @@ pub fn parse_root(items: Vec<KeyValuePair>, water_right: &mut WaterRight) -> any
             ("abweichend", _) => (),
             ("erteilt durch:", v) => water_right.granting_authority = v,
             ("erteilt am:", v) => water_right.valid_from = v,
-            ("erstmalig ertellt am:", v) => water_right.first_grant = v,
+            // TODO: remove this when the reports have their typo fixed
+            ("erstmalig erteilt am:" | "erstmalig ertellt am:", v) => water_right.first_grant = v,
             ("Aktenzeichen:", v) => water_right.file_reference = v,
             ("Das Recht ist befristet bis", v) => water_right.valid_until = v,
             ("und betrifft Rechtsabteilungen", _) => (),
