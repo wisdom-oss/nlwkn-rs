@@ -130,76 +130,7 @@ fn parse_usage_location(
                     Some(SingleOrPair::Pair(num.replace(' ', "").parse()?, s))
             }
             ("Verordnungszitat:", v, _) => usage_location.regulation_citation = v,
-            ("Erlaubniswert:", Some(v), _) => {
-                let mut split = v.rsplitn(3, ' ');
-                let unit = split.next().ok_or(anyhow::Error::msg("'Erlaubniswert' has no unit"))?;
-                let value =
-                    split.next().ok_or(anyhow::Error::msg("'Erlaubniswert' has no value"))?;
-                let kind =
-                    split.next().ok_or(anyhow::Error::msg("'Erlaubniswert' has no specifier"))?;
-                let rate = format!("{value} {unit}");
-                let rate = match Rate::from_str(&rate) {
-                    Ok(rate) => OrFallback::Expected(rate),
-                    Err(_) => OrFallback::Fallback(rate)
-                };
-
-                use LegalDepartmentAbbreviation::*;
-                match kind {
-                    "Entnahmemenge" => {
-                        usage_location.withdrawal_rate.insert(rate);
-                    }
-                    "Förderleistung" => {
-                        usage_location.pumping_rate.insert(rate);
-                    }
-                    "Einleitungsmenge" => {
-                        usage_location.injection_rate.insert(rate);
-                    }
-                    "Stauziel, bezogen auf NN" => {
-                        usage_location
-                            .dam_target_levels
-                            .default
-                            .replace((value.parse()?, unit.to_string()).into());
-                    }
-                    "Stauziel (Höchststau), bezogen auf NN" => {
-                        usage_location
-                            .dam_target_levels
-                            .max
-                            .replace((value.parse()?, unit.to_string()).into());
-                    }
-                    "Stauziel (Dauerstau), bezogen auf NN" => {
-                        usage_location
-                            .dam_target_levels
-                            .steady
-                            .replace((value.parse()?, unit.to_string()).into());
-                    }
-                    "Abwasservolumenstrom, Sekunde" |
-                    "Abwasservolumenstrom, RW, Sekunde" |
-                    "Abwasservolumenstrom, Std." |
-                    "Abwasservolumenstrom, Tag" |
-                    "Abwasservolumenstrom, Jahr" |
-                    "Abwasservolumenstrom, RW, Jahr" => {
-                        usage_location.waste_water_flow_volume.insert(rate);
-                    }
-                    "Beregnungsfläche" => {
-                        usage_location
-                            .irrigation_area
-                            .replace((value.parse()?, unit.to_string()).into());
-                    }
-                    "Zusatzregen" => {
-                        usage_location.rain_supplement.insert(rate);
-                    }
-                    "Ableitungsmenge" => {
-                        usage_location.fluid_discharge.insert(rate);
-                    }
-                    a if matches!(department, B | C | F) => {
-                        usage_location.injection_limit.push((a.to_string(), Quantity {
-                            value: value.parse()?,
-                            unit: unit.to_string()
-                        }));
-                    }
-                    a => return Err(anyhow::Error::msg(format!("unknown allow value: {a:?}")))
-                }
-            }
+            ("Erlaubniswert:", Some(v), _) => parse_allowance_value(v, usage_location, department)?,
 
             (key, first, second) => {
                 return Err(anyhow::Error::msg(format!(
@@ -208,6 +139,77 @@ fn parse_usage_location(
                 )));
             }
         }
+    }
+
+    Ok(())
+}
+
+fn parse_allowance_value(
+    value: String,
+    usage_location: &mut UsageLocation,
+    department: LegalDepartmentAbbreviation
+) -> anyhow::Result<()> {
+    use LegalDepartmentAbbreviation::*;
+
+    let mut split = value.rsplitn(3, ' ');
+    let unit = split.next().ok_or(anyhow::Error::msg("'Erlaubniswert' has no unit"))?;
+    let value = split.next().ok_or(anyhow::Error::msg("'Erlaubniswert' has no value"))?;
+    let kind = split.next().ok_or(anyhow::Error::msg("'Erlaubniswert' has no specifier"))?;
+    let rate = format!("{value} {unit}");
+    let rate = match Rate::from_str(&rate) {
+        Ok(rate) => OrFallback::Expected(rate),
+        Err(_) => OrFallback::Fallback(rate)
+    };
+
+    match kind {
+        "Entnahmemenge" => {
+            usage_location.withdrawal_rate.insert(rate);
+        }
+        "Förderleistung" => {
+            usage_location.pumping_rate.insert(rate);
+        }
+        "Einleitungsmenge" => {
+            usage_location.injection_rate.insert(rate);
+        }
+        "Stauziel, bezogen auf NN" => {
+            usage_location
+                .dam_target_levels
+                .default
+                .replace((value.parse()?, unit.to_string()).into());
+        }
+        "Stauziel (Höchststau), bezogen auf NN" => {
+            usage_location.dam_target_levels.max.replace((value.parse()?, unit.to_string()).into());
+        }
+        "Stauziel (Dauerstau), bezogen auf NN" => {
+            usage_location
+                .dam_target_levels
+                .steady
+                .replace((value.parse()?, unit.to_string()).into());
+        }
+        "Abwasservolumenstrom, Sekunde" |
+        "Abwasservolumenstrom, RW, Sekunde" |
+        "Abwasservolumenstrom, Std." |
+        "Abwasservolumenstrom, Tag" |
+        "Abwasservolumenstrom, Jahr" |
+        "Abwasservolumenstrom, RW, Jahr" => {
+            usage_location.waste_water_flow_volume.insert(rate);
+        }
+        "Beregnungsfläche" => {
+            usage_location.irrigation_area.replace((value.parse()?, unit.to_string()).into());
+        }
+        "Zusatzregen" => {
+            usage_location.rain_supplement.insert(rate);
+        }
+        "Ableitungsmenge" => {
+            usage_location.fluid_discharge.insert(rate);
+        }
+        a if matches!(department, B | C | F) => {
+            usage_location.injection_limit.push((a.to_string(), Quantity {
+                value: value.parse()?,
+                unit: unit.to_string()
+            }));
+        }
+        a => return Err(anyhow::Error::msg(format!("unknown allow value: {a:?}")))
     }
 
     Ok(())
