@@ -18,13 +18,13 @@ pub struct CadenzaTableRow {
     pub no: WaterRightNo,
 
     #[serde(rename = "Rechtsinhaber")]
-    pub bailee: Option<String>,
+    pub rights_holder: Option<String>,
 
     #[serde(rename = "Gültig Bis", deserialize_with = "deserialize_date", default)]
-    pub valid_to: Option<String>,
+    pub valid_until: Option<String>,
 
     #[serde(rename = "Zustand")]
-    pub state: Option<String>,
+    pub status: Option<String>,
 
     #[serde(rename = "Gültig Ab", deserialize_with = "deserialize_date", default)]
     pub valid_from: Option<String>,
@@ -71,16 +71,16 @@ pub struct CadenzaTableRow {
     pub legal_department: String,
 
     #[serde(rename = "Rechtszweck")]
-    pub legal_scope: Option<String>,
+    pub legal_purpose: Option<String>,
 
     #[serde(rename = "Landkreis")]
     pub county: Option<String>,
 
     #[serde(rename = "Flussgebiet")]
-    pub rivershed: Option<String>,
+    pub river_basin: Option<String>,
 
     #[serde(rename = "Grundwasserkörper")]
-    pub groundwater_volume: Option<String>,
+    pub groundwater_body: Option<String>,
 
     #[serde(rename = "Überschwemmungsgebiet")]
     pub flood_area: Option<String>,
@@ -127,9 +127,9 @@ impl CadenzaTable {
     pub fn sanitize(&mut self) {
         #[allow(deprecated)]
         for row in self.0.iter_mut() {
-            row.bailee = row.bailee.take().sanitize();
-            row.valid_to = row.valid_to.take().sanitize();
-            row.state = row.state.take().sanitize();
+            row.rights_holder = row.rights_holder.take().sanitize();
+            row.valid_until = row.valid_until.take().sanitize();
+            row.status = row.status.take().sanitize();
             row.valid_from = row.valid_from.take().sanitize();
             row.legal_departments = row.legal_departments.take().sanitize();
             row.legal_title = row.legal_title.take().sanitize();
@@ -141,10 +141,10 @@ impl CadenzaTable {
             row.subject = row.subject.take().sanitize();
             row.address = row.address.take().sanitize();
             row.usage_location = row.usage_location.take().sanitize();
-            row.legal_scope = row.legal_scope.take().sanitize();
+            row.legal_purpose = row.legal_purpose.take().sanitize();
             row.county = row.county.take().sanitize();
-            row.rivershed = row.rivershed.take().sanitize();
-            row.groundwater_volume = row.groundwater_volume.take().sanitize();
+            row.river_basin = row.river_basin.take().sanitize();
+            row.groundwater_body = row.groundwater_body.take().sanitize();
             row.flood_area = row.flood_area.take().sanitize();
             row.water_protection_area = row.water_protection_area.take().sanitize();
         }
@@ -190,9 +190,9 @@ mod tests {
 
         let first_row = CadenzaTableRow {
             no: 1101,
-            bailee: "Körtke".to_string().into(),
-            valid_to: "2009-12-31".to_string().into(),
-            state: "aktiv".to_string().into(),
+            rights_holder: "Körtke".to_string().into(),
+            valid_until: "2009-12-31".to_string().into(),
+            status: "aktiv".to_string().into(),
             valid_from: "1989-01-23".to_string().into(),
             legal_departments: "A B ".to_string().into(),
             legal_title: "Erlaubnis".to_string().into(),
@@ -208,10 +208,10 @@ mod tests {
             legal_department: "Entnahme von Wasser oder Entnahmen fester Stoffe aus oberirdischen \
                                Gewässern"
                 .to_string(),
-            legal_scope: "A70 Speisung von Teichen".to_string().into(),
+            legal_purpose: "A70 Speisung von Teichen".to_string().into(),
             county: "Gifhorn".to_string().into(),
-            rivershed: "Elbe/Labe".to_string().into(),
-            groundwater_volume: "Ilmenau Lockergestein links".to_string().into(),
+            river_basin: "Elbe/Labe".to_string().into(),
+            groundwater_body: "Ilmenau Lockergestein links".to_string().into(),
             flood_area: None,
             water_protection_area: None,
             utm_easting: Some(32603873),

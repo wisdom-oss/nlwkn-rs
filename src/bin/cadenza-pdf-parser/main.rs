@@ -122,9 +122,9 @@ async fn main() -> ExitCode {
                 for row in cadenza_table.rows().iter().filter(|row| row.no == water_right_no) {
                     enriched = true;
                     let wr = &mut water_right;
-                    wr.bailee.update_if_none_clone(row.bailee.as_ref());
-                    wr.valid_to.update_if_none_clone(row.valid_to.as_ref());
-                    wr.state.update_if_none_clone(row.state.as_ref());
+                    wr.rights_holder.update_if_none_clone(row.rights_holder.as_ref());
+                    wr.valid_until.update_if_none_clone(row.valid_until.as_ref());
+                    wr.status.update_if_none_clone(row.status.as_ref());
                     wr.valid_from.update_if_none_clone(row.valid_from.as_ref());
                     wr.legal_title.update_if_none_clone(row.legal_title.as_ref());
                     wr.water_authority.update_if_none_clone(row.water_authority.as_ref());
@@ -151,16 +151,16 @@ async fn main() -> ExitCode {
 
                     let ul = usage_location;
                     ul.no.update_if_none(Some(row.usage_location_no));
-                    ul.legal_scope.update_if_none_with(|| {
-                        row.legal_scope.as_ref().and_then(|ls| {
+                    ul.legal_purpose.update_if_none_with(|| {
+                        row.legal_purpose.as_ref().and_then(|ls| {
                             ls.splitn(2, ' ')
                                 .map(ToString::to_string)
                                 .collect_tuple::<(String, String)>()
                         })
                     });
                     ul.county.update_if_none_clone(row.county.as_ref());
-                    ul.rivershed.update_if_none_clone(row.rivershed.as_ref());
-                    ul.groundwater_volume.update_if_none_clone(row.groundwater_volume.as_ref());
+                    ul.river_basin.update_if_none_clone(row.river_basin.as_ref());
+                    ul.groundwater_body.update_if_none_clone(row.groundwater_body.as_ref());
                     ul.flood_area.update_if_none_clone(row.flood_area.as_ref());
                     ul.water_protection_area
                         .update_if_none_clone(row.water_protection_area.as_ref());
@@ -197,7 +197,7 @@ async fn main() -> ExitCode {
 
                 // normalize dates into ISO form
                 for date_opt in [
-                    &mut water_right.valid_to,
+                    &mut water_right.valid_until,
                     &mut water_right.valid_from,
                     &mut water_right.first_grant,
                     &mut water_right.date_of_change

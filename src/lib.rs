@@ -26,13 +26,13 @@ data_structs! {
         no: WaterRightNo,
 
         /// "Rechtsinhaber"
-        bailee?: String,
+        rights_holder?: String,
 
         /// "Gültig Bis"
-        valid_to?: String,
+        valid_until?: String,
 
         /// "Zustand"
-        state?: String,
+        status?: String,
 
         /// "Gültig Ab/erteilt am"
         valid_from?: String,
@@ -68,11 +68,6 @@ data_structs! {
         address?: String,
 
         legal_departments: HashMap<LegalDepartmentAbbreviation, LegalDepartment>,
-
-        //report_file?: Buffer,
-
-        /// Date when the report was crawled.
-        date_of_file_crawl?: String,
 
         /// "Bemerkung"
         annotation?: String,
@@ -112,7 +107,7 @@ data_structs! {
         name?: String,
 
         /// "Rechtszweck"
-        legal_scope?: (String, String),
+        legal_purpose?: (String, String),
 
         /// "Top. Karte 1:25.000"
         #[serde(rename = "topMap1:25000")]
@@ -137,7 +132,7 @@ data_structs! {
         eu_survey_area?: (u64, String),
 
         /// "Einzugsgebietskennzahl"
-        basin_no?: SingleOrPair<u64, String>,
+        basin_code?: SingleOrPair<u64, String>,
 
         /// "Verordnungszitat"
         regulation_citation?: String,
@@ -159,10 +154,10 @@ data_structs! {
         waste_water_flow_volume: RateRecord,
 
         /// "Flussgebiet"
-        rivershed?: String,
+        river_basin?: String,
 
         /// "Grundwasserkörper"
-        groundwater_volume?: String,
+        groundwater_body?: String,
 
         /// "Gewässer"
         water_body?: String,
@@ -194,7 +189,7 @@ data_structs! {
 
         /// "Erlaubniswert" for legal department B
         #[serde(skip_serializing_if = "Vec::is_empty")]
-        inject_allowance: Vec<(String, Quantity)>,
+        injection_limit: Vec<(String, Quantity)>,
 
         /// "UTM-Rechtswert"
         utm_easting?: u64,
@@ -235,9 +230,9 @@ impl WaterRight {
     pub fn new(water_right_no: WaterRightNo) -> Self {
         WaterRight {
             no: water_right_no,
-            bailee: None,
-            valid_to: None,
-            state: None,
+            rights_holder: None,
+            valid_until: None,
+            status: None,
             valid_from: None,
             legal_title: None,
             water_authority: None,
@@ -250,7 +245,6 @@ impl WaterRight {
             subject: None,
             address: None,
             legal_departments: Default::default(),
-            date_of_file_crawl: None,
             annotation: None
         }
     }
@@ -274,7 +268,7 @@ impl UsageLocation {
             active: None,
             real: None,
             name: None,
-            legal_scope: None,
+            legal_purpose: None,
             top_map_1_25000: None,
             municipal_area: None,
             county: None,
@@ -282,14 +276,14 @@ impl UsageLocation {
             plot: None,
             maintenance_association: None,
             eu_survey_area: None,
-            basin_no: None,
+            basin_code: None,
             regulation_citation: None,
             withdrawal_rate: Default::default(),
             pumping_rate: Default::default(),
             injection_rate: Default::default(),
             waste_water_flow_volume: Default::default(),
-            rivershed: None,
-            groundwater_volume: None,
+            river_basin: None,
+            groundwater_body: None,
             water_body: None,
             flood_area: None,
             water_protection_area: None,
@@ -298,7 +292,7 @@ impl UsageLocation {
             rain_supplement: Default::default(),
             irrigation_area: None,
             ph_values: None,
-            inject_allowance: Default::default(),
+            injection_limit: Default::default(),
             utm_easting: None,
             utm_northing: None
         }

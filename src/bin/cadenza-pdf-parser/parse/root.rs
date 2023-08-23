@@ -10,7 +10,7 @@ pub fn parse_root(items: Vec<KeyValuePair>, water_right: &mut WaterRight) -> any
             ("Wasserbuchbehörde", v) => water_right.water_authority = v,
             ("Kennziffer", Some(v)) => {
                 let mut split = v.rsplitn(2, ' ');
-                water_right.state = split.next().map(|state| state[1..state.len() - 1].to_string());
+                water_right.status = split.next().map(|state| state[1..state.len() - 1].to_string());
                 water_right.external_identifier = split.next().map(|ext_id| ext_id.to_string());
             }
             ("erteilt durch /", _) => (),
@@ -20,7 +20,7 @@ pub fn parse_root(items: Vec<KeyValuePair>, water_right: &mut WaterRight) -> any
             ("erteilt am:", v) => water_right.valid_from = v,
             ("erstmalig ertellt am:", v) => water_right.first_grant = v,
             ("Aktenzeichen:", v) => water_right.file_reference = v,
-            ("Das Recht ist befristet bis", v) => water_right.valid_to = v,
+            ("Das Recht ist befristet bis", v) => water_right.valid_until = v,
             ("und betrifft Rechtsabteilungen", _) => (),
             ("Betreff:", v) => water_right.subject = v,
             (key, value) => {

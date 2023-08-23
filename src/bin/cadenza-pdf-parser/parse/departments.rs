@@ -75,7 +75,7 @@ fn parse_usage_location(
             }
             ("Bezeichnung:", v, _) => usage_location.name = v,
             ("Rechtszweck:", Some(v), _) => {
-                usage_location.legal_scope =
+                usage_location.legal_purpose =
                     v.splitn(2, ' ').map(ToString::to_string).collect_tuple()
             }
             ("East und North:", Some(v), _) => usage_location.utm_easting = Some(v.parse()?),
@@ -122,10 +122,10 @@ fn parse_usage_location(
             ("Gewässer:", v, _) => usage_location.water_body = v,
             ("Einzugsgebietskennzahl:", None, None) => (),
             ("Einzugsgebietskennzahl:", Some(num), None) => {
-                usage_location.basin_no = Some(SingleOrPair::Single(num.replace(' ', "").parse()?))
+                usage_location.basin_code = Some(SingleOrPair::Single(num.replace(' ', "").parse()?))
             }
             ("Einzugsgebietskennzahl:", Some(num), Some(s)) => {
-                usage_location.basin_no = Some(SingleOrPair::Pair(num.replace(' ', "").parse()?, s))
+                usage_location.basin_code = Some(SingleOrPair::Pair(num.replace(' ', "").parse()?, s))
             }
             ("Verordnungszitat:", v, _) => usage_location.regulation_citation = v,
             ("Erlaubniswert:", Some(v), _) => {
@@ -190,7 +190,7 @@ fn parse_usage_location(
                         usage_location.fluid_discharge.insert(rate);
                     }
                     a if matches!(department, B | C | F) => {
-                        usage_location.inject_allowance.push((a.to_string(), Quantity {
+                        usage_location.injection_limit.push((a.to_string(), Quantity {
                             value: value.parse()?,
                             unit: unit.to_string()
                         }));
