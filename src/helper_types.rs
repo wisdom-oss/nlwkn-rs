@@ -240,15 +240,6 @@ impl Ord for TimeDimension {
     }
 }
 
-data_structs! {
-    /// A number that has a unit and a description.
-    struct DescriptiveNumber {
-        value: f64,
-        unit: String,
-        description?: String,
-    }
-}
-
 /// A number that has a unit.
 #[derive(Debug, Deserialize)]
 pub struct Quantity {
