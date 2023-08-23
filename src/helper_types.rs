@@ -14,7 +14,7 @@ use crate::util::Near;
 pub struct Rate<T> {
     pub value: T,
     pub measurement: String,
-    pub time: TimeDimension
+    pub time: Duration
 }
 
 impl<T> PartialEq for Rate<T>
@@ -66,7 +66,7 @@ where
     where
         D: Deserializer<'de>
     {
-        let (value, measurement, time) = <(T, String, TimeDimension)>::deserialize(deserializer)?;
+        let (value, measurement, time) = <(T, String, Duration)>::deserialize(deserializer)?;
         Ok(Rate {
             value,
             measurement,
@@ -99,13 +99,13 @@ impl FromStr for Rate<f64> {
         let measurement = unit_capture["measurement"].to_string();
         let factor: f64 = unit_capture["factor"].parse().unwrap_or(1f64);
         let time = match &unit_capture["time"] {
-            "s" => TimeDimension::Seconds(factor),
-            "m" | "min" => TimeDimension::Minutes(factor),
-            "h" => TimeDimension::Hours(factor),
-            "d" => TimeDimension::Days(factor),
-            "w" | "wo" => TimeDimension::Weeks(factor),
-            "M" | "mo" => TimeDimension::Months(factor),
-            "a" | "y" => TimeDimension::Years(factor),
+            "s" => Duration::Seconds(factor),
+            "m" | "min" => Duration::Minutes(factor),
+            "h" => Duration::Hours(factor),
+            "d" => Duration::Days(factor),
+            "w" | "wo" => Duration::Weeks(factor),
+            "M" | "mo" => Duration::Months(factor),
+            "a" | "y" => Duration::Years(factor),
             unit => {
                 return Err(anyhow::Error::msg(format!(
                     "{unit} is a unknown time dimension"
@@ -122,7 +122,7 @@ impl FromStr for Rate<f64> {
 }
 
 #[derive(Debug)]
-pub enum TimeDimension {
+pub enum Duration {
     Seconds(f64),
     Minutes(f64),
     Hours(f64),
@@ -132,12 +132,12 @@ pub enum TimeDimension {
     Years(f64)
 }
 
-impl TimeDimension {
+impl Duration {
     /// Rough conversion to seconds.
     ///
     /// Imprecise for dimensions larger than weeks.
     pub fn as_secs(&self) -> f64 {
-        use TimeDimension::*;
+        use Duration::*;
 
         match self {
             Seconds(s) => *s,
@@ -151,32 +151,32 @@ impl TimeDimension {
     }
 }
 
-impl Serialize for TimeDimension {
+impl Serialize for Duration {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer
     {
         let s: Cow<'_, str> = match self {
-            TimeDimension::Seconds(v) if v.is_near(&1.0) => "s".into(),
-            TimeDimension::Seconds(v) => format!("{v}s").into(),
+            Duration::Seconds(v) if v.is_near(&1.0) => "s".into(),
+            Duration::Seconds(v) => format!("{v}s").into(),
 
-            TimeDimension::Minutes(v) if v.is_near(&1.0) => "m".into(),
-            TimeDimension::Minutes(v) => format!("{v}m").into(),
+            Duration::Minutes(v) if v.is_near(&1.0) => "m".into(),
+            Duration::Minutes(v) => format!("{v}m").into(),
 
-            TimeDimension::Hours(v) if v.is_near(&1.0) => "h".into(),
-            TimeDimension::Hours(v) => format!("{v}h").into(),
+            Duration::Hours(v) if v.is_near(&1.0) => "h".into(),
+            Duration::Hours(v) => format!("{v}h").into(),
 
-            TimeDimension::Days(v) if v.is_near(&1.0) => "d".into(),
-            TimeDimension::Days(v) => format!("{v}d").into(),
+            Duration::Days(v) if v.is_near(&1.0) => "d".into(),
+            Duration::Days(v) => format!("{v}d").into(),
 
-            TimeDimension::Weeks(v) if v.is_near(&1.0) => "w".into(),
-            TimeDimension::Weeks(v) => format!("{v}wo").into(),
+            Duration::Weeks(v) if v.is_near(&1.0) => "w".into(),
+            Duration::Weeks(v) => format!("{v}wo").into(),
 
-            TimeDimension::Months(v) if v.is_near(&1.0) => "mo".into(),
-            TimeDimension::Months(v) => format!("{v}mo").into(),
+            Duration::Months(v) if v.is_near(&1.0) => "mo".into(),
+            Duration::Months(v) => format!("{v}mo").into(),
 
-            TimeDimension::Years(v) if v.is_near(&1.0) => "a".into(),
-            TimeDimension::Years(v) => format!("{v}a").into()
+            Duration::Years(v) if v.is_near(&1.0) => "a".into(),
+            Duration::Years(v) => format!("{v}a").into()
         };
 
         s.serialize(serializer)
@@ -188,7 +188,7 @@ lazy_static! {
         Regex::new(r"^(?<value>\d*)(?<duration>\w+)$").expect("valid regex");
 }
 
-impl<'de> Deserialize<'de> for TimeDimension {
+impl<'de> Deserialize<'de> for Duration {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>
@@ -206,33 +206,33 @@ impl<'de> Deserialize<'de> for TimeDimension {
 
         let duration = &captured["duration"];
         Ok(match duration {
-            "s" => TimeDimension::Seconds(value),
-            "m" => TimeDimension::Minutes(value),
-            "h" => TimeDimension::Hours(value),
-            "d" => TimeDimension::Days(value),
-            "w" => TimeDimension::Weeks(value),
-            "M" => TimeDimension::Months(value),
-            "a" => TimeDimension::Years(value),
+            "s" => Duration::Seconds(value),
+            "m" => Duration::Minutes(value),
+            "h" => Duration::Hours(value),
+            "d" => Duration::Days(value),
+            "w" => Duration::Weeks(value),
+            "M" => Duration::Months(value),
+            "a" => Duration::Years(value),
             d => return Err(D::Error::custom(format!("unknown date duration: {d}")))
         })
     }
 }
 
-impl PartialEq for TimeDimension {
+impl PartialEq for Duration {
     fn eq(&self, other: &Self) -> bool {
         self.as_secs() == other.as_secs()
     }
 }
 
-impl Eq for TimeDimension {}
+impl Eq for Duration {}
 
-impl PartialOrd for TimeDimension {
+impl PartialOrd for Duration {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for TimeDimension {
+impl Ord for Duration {
     fn cmp(&self, other: &Self) -> Ordering {
         self.as_secs().partial_cmp(&other.as_secs()).expect("should never be NaN")
     }
