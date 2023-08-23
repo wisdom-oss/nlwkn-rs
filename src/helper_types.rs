@@ -1,16 +1,14 @@
 use std::borrow::Cow;
 use std::cmp::Ordering;
-use std::fmt::{Formatter, Write};
 use std::str::FromStr;
 
 use lazy_static::lazy_static;
 use regex::Regex;
-use serde::de::{DeserializeOwned, Error, SeqAccess, Visitor};
+use serde::de::{DeserializeOwned, Error};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
-use serde_with::{DeserializeAs, OneOrMany, Same};
 
-use crate::util::{data_structs, Near};
+use crate::util::Near;
 
 #[derive(Debug)]
 pub struct Rate<T> {

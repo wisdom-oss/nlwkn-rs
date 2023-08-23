@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use itertools::Itertools;
 use lazy_static::lazy_static;
-use nlwkn::helper_types::{Quantity, OrFallback, Rate, SingleOrPair};
+use nlwkn::helper_types::{OrFallback, Quantity, Rate, SingleOrPair};
 use nlwkn::util::StringOption;
 use nlwkn::{LandRecord, LegalDepartment, LegalDepartmentAbbreviation, UsageLocation, WaterRight};
 use regex::Regex;
@@ -82,11 +82,11 @@ fn parse_usage_location(
             ("Top. Karte 1:25.000:", None, None) => (),
             ("Top. Karte 1:25.000:", Some(num), None) => {
                 usage_location.top_map_1_25000 =
-                    Some(SingleOrPair::Single(num.replace(" ", "").parse()?))
+                    Some(SingleOrPair::Single(num.replace(' ', "").parse()?))
             }
             ("Top. Karte 1:25.000:", Some(num), Some(s)) => {
                 usage_location.top_map_1_25000 =
-                    Some(SingleOrPair::Pair(num.replace(" ", "").parse()?, s))
+                    Some(SingleOrPair::Pair(num.replace(' ', "").parse()?, s))
             }
             ("(ETRS89/UTM 32N)", Some(v), _) => usage_location.utm_northing = Some(v.parse()?),
             ("Gemeindegebiet:", None, None) => (),
@@ -122,10 +122,10 @@ fn parse_usage_location(
             ("Gewässer:", v, _) => usage_location.water_body = v,
             ("Einzugsgebietskennzahl:", None, None) => (),
             ("Einzugsgebietskennzahl:", Some(num), None) => {
-                usage_location.basin_no = Some(SingleOrPair::Single(num.replace(" ", "").parse()?))
+                usage_location.basin_no = Some(SingleOrPair::Single(num.replace(' ', "").parse()?))
             }
             ("Einzugsgebietskennzahl:", Some(num), Some(s)) => {
-                usage_location.basin_no = Some(SingleOrPair::Pair(num.replace(" ", "").parse()?, s))
+                usage_location.basin_no = Some(SingleOrPair::Pair(num.replace(' ', "").parse()?, s))
             }
             ("Verordnungszitat:", v, _) => usage_location.regulation_citation = v,
             ("Erlaubniswert:", Some(v), _) => {

@@ -36,8 +36,7 @@ impl From<TextBlockRepr> for KeyValueRepr {
                         let s = pairs
                             .iter_mut()
                             .rev()
-                            .map(|(_, values)| values)
-                            .flatten()
+                            .flat_map(|(_, values)| values)
                             .find(|(key_x, _)| *key_x == x)
                             .expect("line break without existing previous line?");
                         s.1.push(' ');
