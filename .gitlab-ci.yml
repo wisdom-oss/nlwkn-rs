@@ -1,0 +1,7 @@
+include:
+  - project: 'wisdom-oss/ci-cd'
+    ref: main
+    file: '/documentation.yml'
+
+stages:
+  - docs
