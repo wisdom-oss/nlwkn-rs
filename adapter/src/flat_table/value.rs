@@ -51,7 +51,7 @@ impl Display for FlatTableValue {
 
             FlatTableValue::String(s) => {
                 write!(fmt, "\"")?;
-                for line in Itertools::intersperse(s.lines(), "\\n") {
+                for line in Itertools::intersperse(s.lines(), "\n") {
                     fmt.write_str(&line.replace("\"", "\"\""))?;
                 }
                 write!(fmt, "\"")
