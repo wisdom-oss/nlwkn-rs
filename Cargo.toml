@@ -9,15 +9,15 @@ publish = false
 path = "lib/src/lib.rs"
 
 [[bin]]
-name = "cadenza-pdf-fetcher"
+name = "fetcher"
 path = "fetcher/src/main.rs"
 
 [[bin]]
-name = "cadenza-pdf-parser"
+name = "parser"
 path = "parser/src/main.rs"
 
 [[bin]]
-name = "cadenza-pdf-adapter"
+name = "adapter"
 path = "adapter/src/main.rs"
 
 [dependencies]
