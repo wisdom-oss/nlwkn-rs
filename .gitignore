@@ -1,6 +1,9 @@
 # idea
 /.idea
 
+# python virtual env
+/.venv
+
 # cargo
 /target
 
