@@ -163,15 +163,16 @@ async fn main() -> ExitCode {
         parsing_issues_path,
         pdf_only_reports_path,
         reports_path
-    } = match save_results(&data_path, &water_rights, &pdf_only_water_rights, &broken_reports, &parsing_issues) {
+    } = match save_results(
+        &data_path,
+        &water_rights,
+        &pdf_only_water_rights,
+        &broken_reports,
+        &parsing_issues
+    ) {
         Ok(paths) => paths,
         Err(e) => {
-            progress_message(
-                &PROGRESS,
-                "Error",
-                Color::Red,
-                e
-            );
+            progress_message(&PROGRESS, "Error", Color::Red, e);
             PROGRESS.finish_and_clear();
             return ExitCode::FAILURE;
         }
@@ -182,10 +183,7 @@ async fn main() -> ExitCode {
     print!("{}", Report {
         broken: (broken_reports.len(), broken_reports_path.display()),
         parsing_issues: (parsing_issues.len(), parsing_issues_path.display()),
-        pdf_only: (
-            pdf_only_water_rights.len(),
-            pdf_only_reports_path.display()
-        ),
+        pdf_only: (pdf_only_water_rights.len(), pdf_only_reports_path.display()),
         successful: (water_rights.len(), reports_path.display())
     });
     ExitCode::SUCCESS
@@ -257,6 +255,9 @@ fn load_reports(
     Ok((reports, broken_reports))
 }
 
+// TODO: this uses tokio for parallelization, tokio is here not the best choice
+// since these       operations are cpu-intensive, rayon would be a better
+// choice
 #[inline]
 fn parsing_task(
     water_right_no: WaterRightNo,
@@ -403,9 +404,9 @@ fn save_results(
     };
 
     #[cfg(debug_assertions)]
-        let reports_json = serde_json::to_string_pretty(water_rights);
+    let reports_json = serde_json::to_string_pretty(water_rights);
     #[cfg(not(debug_assertions))]
-        let reports_json = serde_json::to_string(&water_rights);
+    let reports_json = serde_json::to_string(&water_rights);
     let reports_json = match reports_json {
         Ok(json) => json,
         Err(e) => return Err(format!("could not serialize water rights to json, {e}"))
@@ -424,12 +425,16 @@ fn save_results(
     };
 
     #[cfg(debug_assertions)]
-        let pdf_only_reports_json = serde_json::to_string_pretty(pdf_only_water_rights);
+    let pdf_only_reports_json = serde_json::to_string_pretty(pdf_only_water_rights);
     #[cfg(not(debug_assertions))]
-        let pdf_only_reports_json = serde_json::to_string(&pdf_only_water_rights);
+    let pdf_only_reports_json = serde_json::to_string(&pdf_only_water_rights);
     let pdf_only_reports_json = match pdf_only_reports_json {
         Ok(json) => json,
-        Err(e) => return Err(format!("could not serialize pdf only water rights to json, {e}"))
+        Err(e) => {
+            return Err(format!(
+                "could not serialize pdf only water rights to json, {e}"
+            ))
+        }
     };
 
     if let Err(e) = fs::write(&pdf_only_reports_json_path, pdf_only_reports_json) {
@@ -476,7 +481,7 @@ fn save_results(
         broken_reports_path,
         parsing_issues_path,
         pdf_only_reports_path: pdf_only_reports_json_path,
-        reports_path: reports_json_path,
+        reports_path: reports_json_path
     })
 }
 

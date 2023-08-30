@@ -138,19 +138,19 @@ data_structs! {
         regulation_citation?: String,
 
         /// "Entnahmemenge"
-        #[serde(skip_serializing_if = "RateRecord::is_empty")]
+        #[serde(skip_serializing_if = "RateRecord::is_empty", default)]
         withdrawal_rate: RateRecord,
 
         /// "Förderleistung"
-        #[serde(skip_serializing_if = "RateRecord::is_empty")]
+        #[serde(skip_serializing_if = "RateRecord::is_empty", default)]
         pumping_rate: RateRecord,
 
         /// "Einleitungsmenge"
-        #[serde(skip_serializing_if = "RateRecord::is_empty")]
+        #[serde(skip_serializing_if = "RateRecord::is_empty", default)]
         injection_rate: RateRecord,
 
         /// "Abwasservolumenstrom"
-        #[serde(skip_serializing_if = "RateRecord::is_empty")]
+        #[serde(skip_serializing_if = "RateRecord::is_empty", default)]
         waste_water_flow_volume: RateRecord,
 
         /// "Flussgebiet"
@@ -169,15 +169,15 @@ data_structs! {
         water_protection_area?: String,
 
         /// "Stauziele"
-        #[serde(skip_serializing_if = "DamTargets::is_empty")]
+        #[serde(skip_serializing_if = "DamTargets::is_empty", default)]
         dam_target_levels: DamTargets,
 
         /// "Ableitungsmenge"
-        #[serde(skip_serializing_if = "RateRecord::is_empty")]
+        #[serde(skip_serializing_if = "RateRecord::is_empty", default)]
         fluid_discharge: RateRecord,
 
         /// "Zusatzregen"
-        #[serde(skip_serializing_if = "RateRecord::is_empty")]
+        #[serde(skip_serializing_if = "RateRecord::is_empty", default)]
         rain_supplement: RateRecord,
 
         /// "Beregnungsfläche"
@@ -188,7 +188,7 @@ data_structs! {
         ph_values?: PHValues,
 
         /// "Erlaubniswert" for legal department B
-        #[serde(skip_serializing_if = "Vec::is_empty")]
+        #[serde(skip_serializing_if = "Vec::is_empty", default)]
         injection_limit: Vec<(String, Quantity)>,
 
         /// "UTM-Rechtswert"
@@ -328,6 +328,23 @@ pub enum LegalDepartmentAbbreviation {
     L
 }
 
+impl Display for LegalDepartmentAbbreviation {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let char = match self {
+            LegalDepartmentAbbreviation::A => 'A',
+            LegalDepartmentAbbreviation::B => 'B',
+            LegalDepartmentAbbreviation::C => 'C',
+            LegalDepartmentAbbreviation::D => 'D',
+            LegalDepartmentAbbreviation::E => 'E',
+            LegalDepartmentAbbreviation::F => 'F',
+            LegalDepartmentAbbreviation::K => 'K',
+            LegalDepartmentAbbreviation::L => 'L'
+        };
+
+        write!(f, "{char}")
+    }
+}
+
 #[derive(Debug)]
 pub struct ParseLegalDepartmentError(String);
 
@@ -357,7 +374,7 @@ impl FromStr for LegalDepartmentAbbreviation {
     }
 }
 
-type RateRecord = BTreeSet<OrFallback<Rate<f64>>>;
+pub type RateRecord = BTreeSet<OrFallback<Rate<f64>>>;
 
 impl DamTargets {
     pub fn is_empty(&self) -> bool {

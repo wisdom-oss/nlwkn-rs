@@ -1,5 +1,7 @@
 use std::borrow::Cow;
 use std::cmp::Ordering;
+use std::fmt::{Display, Formatter};
+use std::io::stderr;
 use std::str::FromStr;
 
 use lazy_static::lazy_static;
@@ -183,6 +185,12 @@ impl Serialize for Duration {
     }
 }
 
+impl Display for Duration {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.serialize(f)
+    }
+}
+
 lazy_static! {
     static ref TIME_RE: Regex =
         Regex::new(r"^(?<value>\d*)(?<duration>\w+)$").expect("valid regex");
@@ -207,12 +215,12 @@ impl<'de> Deserialize<'de> for Duration {
         let duration = &captured["duration"];
         Ok(match duration {
             "s" => Duration::Seconds(value),
-            "m" => Duration::Minutes(value),
+            "m" | "min" => Duration::Minutes(value),
             "h" => Duration::Hours(value),
             "d" => Duration::Days(value),
-            "w" => Duration::Weeks(value),
-            "M" => Duration::Months(value),
-            "a" => Duration::Years(value),
+            "w" | "wo" => Duration::Weeks(value),
+            "M" | "mo" => Duration::Months(value),
+            "a" | "y" => Duration::Years(value),
             d => return Err(D::Error::custom(format!("unknown date duration: {d}")))
         })
     }
@@ -251,6 +259,12 @@ impl Serialize for Quantity {
         S: Serializer
     {
         (&self.value, &self.unit).serialize(serializer)
+    }
+}
+
+impl Display for Quantity {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} {}", self.value, self.unit)
     }
 }
 
@@ -310,6 +324,20 @@ where
     }
 }
 
+impl<P0, P1, S> Display for SingleOrPair<P0, P1, S>
+where
+    P0: Display,
+    P1: Display,
+    S: Display
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SingleOrPair::Single(s) => write!(f, "{s}"),
+            SingleOrPair::Pair(p0, p1) => write!(f, "{p0} {p1}")
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum OrFallback<T> {
     Expected(T),
@@ -345,10 +373,17 @@ where
     where
         D: Deserializer<'de>
     {
-        let fallback: String = String::deserialize(deserializer)?;
-        match serde_json::from_value::<T>(Value::String(fallback.clone())) {
+        let any = Value::deserialize(deserializer)?;
+        match serde_json::from_value::<T>(any.clone()) {
             Ok(value) => Ok(OrFallback::Expected(value)),
-            Err(_) => Ok(OrFallback::Fallback(fallback))
+            Err(e) => match any {
+                Value::String(s) => Ok(OrFallback::Fallback(s)),
+                Value::Null => Err(D::Error::custom("expected string, got null")),
+                Value::Bool(b) => Err(D::Error::custom(format!("expected string, got {b}"))),
+                Value::Number(n) => Err(D::Error::custom(format!("expected string, got {n}"))),
+                Value::Array(_) => Err(D::Error::custom("expected string, got an array")),
+                Value::Object(_) => Err(D::Error::custom("expected string, got an object"))
+            }
         }
     }
 }
