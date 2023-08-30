@@ -32,6 +32,8 @@ a map.
 `lib`: Contains shared code that all tools utilize.
 Each tool resides in its own dedicated directory:
 
+<!-- TODO: add a section about `adapter` -->
+
 - `fetcher`: 
   Contains the tool to fetch water rights in PDF format from the Cadenza 
   database.
@@ -48,6 +50,8 @@ refer to the README in their respective directories.
 
 Make sure you have Rust and Cargo installed on your machine. 
 If not, you can get them from [rust-lang.org](https://rust-lang.org).
+
+<!-- TODO: add section about using as lib -->
 
 ### Clone the repository:
 
