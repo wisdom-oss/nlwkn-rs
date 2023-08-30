@@ -5,6 +5,7 @@ use std::marker::PhantomData;
 use std::mem;
 
 use itertools::Itertools;
+
 use crate::flat_table::value::FlatTableValue;
 
 pub enum FlatTableKey<M> {

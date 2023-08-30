@@ -1,6 +1,7 @@
-use clap::{Parser, ValueEnum};
-use std::path::PathBuf;
 use std::fmt::{Display, Formatter};
+use std::path::PathBuf;
+
+use clap::{Parser, ValueEnum};
 
 /// NLWKN Water Right File Adapter
 #[derive(Debug, Parser)]
@@ -21,7 +22,7 @@ pub struct Args {
 
     /// Output file path
     #[arg(long, short)]
-    pub out: Option<PathBuf>,
+    pub out: Option<PathBuf>
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, ValueEnum)]
