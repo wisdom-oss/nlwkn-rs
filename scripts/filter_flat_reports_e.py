@@ -13,8 +13,8 @@ df = pd.read_csv(data_dir + "/reports.csv", sep=";", dtype=str)
 # Filter the DataFrame to keep only rows where 'Abteilungskürzel' or 'legal
 # department abbreviation' is 'E'
 filtered_df = df[
-    (df["Abteilungskürzel"] == "E") |
-    (df["legal department abbreviation"] == "E")
+    (df.get("Abteilungskürzel") == "E") |
+    (df.get("legal department abbreviation") == "E")
 ]
 
 # Remove columns with all values empty or NaN
