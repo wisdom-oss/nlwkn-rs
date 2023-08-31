@@ -5,10 +5,10 @@
   </a>
 </p>
 -->
-<h1 align="center">NWLKN Toolset</h1>
+<h1 align="center">NLWKN Toolset</h1>
 <h3 align="center">nlwkn-rs</h3>
 <p align="center">
-  <b>📑 Tools for handling water rights data from Niedersachsen's Cadenza database.</b>
+  <b>📑 Tools for handling water rights data from Lower Saxony's Cadenza database.</b>
 </p>
 
 <br>
@@ -32,8 +32,6 @@ a map.
 `lib`: Contains shared code that all tools utilize.
 Each tool resides in its own dedicated directory:
 
-<!-- TODO: add a section about `adapter` -->
-
 - `fetcher`: 
   Contains the tool to fetch water rights in PDF format from the Cadenza 
   database.
@@ -41,6 +39,10 @@ Each tool resides in its own dedicated directory:
 - `parser`: 
   Houses the tool to parse these PDF reports and enrich them using an XLSX table 
   that can be downloaded from the Cadenza portal.
+
+- `adapter`:
+  A tool to adapt the data types that `nlwkn-rs` is working on and reformat it 
+  for other tools or people to use.
 
 For a more detailed overview and instructions specific to each tool, please 
 refer to the README in their respective directories.
@@ -67,6 +69,17 @@ cargo build --release
 ```
 
 Refer to individual tool directories for usage instructions.
+
+## Using nlwkn-rs as a library
+Although `nlwkn-rs` is not available on crates.io, you can still use its types 
+or general common codebase as a library by adding it to your cargo 
+dependencies via the git key. 
+
+Add the following to your Cargo.toml file:
+```toml
+[dependencies]
+nlwkn-rs = { git = "https://github.com/wisdom-oss/nlwkn-rs.git" }
+```
 
 ## Disclaimer
 This toolset is not officially affiliated with or endorsed by the 
