@@ -18,7 +18,7 @@ let redirect_content = '
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="refresh" content="0; url=http://www.example.com">
+<meta http-equiv="refresh" content="0; url=./nlwkn/index.html">
 <title>Redirecting</title>
 </head>
 <body>
