@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["ENCODING"],"fn":["handle_rg","handle_tf","handle_tj","handle_tm"],"struct":["TextBlock","TextBlockRepr"]};

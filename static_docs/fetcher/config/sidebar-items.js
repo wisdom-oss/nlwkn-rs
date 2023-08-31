@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["cadenza","data"],"struct":["Config"]};

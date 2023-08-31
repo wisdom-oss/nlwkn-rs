@@ -1,0 +1,3 @@
+(function() {var implementors = {
+"adapter":[["impl ValueEnum for <a class=\"enum\" href=\"adapter/args/enum.Lang.html\" title=\"enum adapter::args::Lang\">Lang</a>"],["impl ValueEnum for <a class=\"enum\" href=\"adapter/args/enum.Format.html\" title=\"enum adapter::args::Format\">Format</a>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

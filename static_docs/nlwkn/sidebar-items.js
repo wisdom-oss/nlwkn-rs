@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["LegalDepartmentAbbreviation"],"mod":["cadenza","cli","helper_types","util"],"struct":["DamTargets","LandRecord","LegalDepartment","PHValues","ParseLegalDepartmentError","UsageLocation","WaterRight"],"type":["RateRecord","WaterRightNo"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["construct_out_path","csv_notifier","flatten_notifier","main"],"mod":["args","flat_table"],"struct":["PROGRESS"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["PRINT_PADDING","PROGRESS_UPDATE_INTERVAL"],"fn":["progress_message"],"struct":["PROGRESS_STYLE","ProgressBarGuard","SPINNER_STYLE"]};

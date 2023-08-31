@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["grouped_key_value","key_value","text_block"]};

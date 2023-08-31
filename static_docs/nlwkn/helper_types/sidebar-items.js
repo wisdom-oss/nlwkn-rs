@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Duration","OrFallback","SingleOrPair"],"struct":["Quantity","Rate"]};

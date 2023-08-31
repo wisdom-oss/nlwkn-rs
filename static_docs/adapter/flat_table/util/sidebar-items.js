@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["flatten_legal_department","flatten_usage_location","flatten_water_right","insert_into_row","insert_rate_record_into_row"]};
