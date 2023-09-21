@@ -30,7 +30,7 @@ lazy_static! {
     static ref PROGRESS: ProgressBar = ProgressBar::new_spinner();
 }
 
-/// NLWKN Water Right Webcrawler
+/// NLWKN Water Right Parser
 #[derive(Debug, Parser)]
 #[command(version, about)]
 struct Args {
