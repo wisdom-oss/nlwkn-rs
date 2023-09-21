@@ -12,7 +12,10 @@ extraction.
 These details are available in individual PDF reports accessible via the 
 platform's map view.
 
+<!-- 
+TODO: add image here
 ![Table View of Cadenza](../img/)
+-->
 
 Downloading thousands of these PDFs manually is impractical. 
 The fetcher tool streamlines this process by automating the download of all 
@@ -20,7 +23,10 @@ available water right reports.
 To use the fetcher effectively, you need to provide it with water right 
 numbers, which can be sourced from the aforementioned XLSX table.
 
+<!-- 
+TODO: add image here
 ![Map View of Cadenza](../img/)
+-->
 
 ## How It Works
 The traditional method of obtaining a report involves manually selecting a dot 
