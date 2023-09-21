@@ -1,4 +1,5 @@
 <h1 align="center">NLWKN Fetcher</h1>
+<h3 align="center">nlwkn-rs</h3>
 <p align="center">
   <b>📥 Automated tool for fetching water right reports from the Cadenza platform.</b>
 </p>
