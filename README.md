@@ -40,7 +40,7 @@ Each tool resides in its own dedicated directory:
   Houses the tool to parse these PDF reports and enrich them using an XLSX table 
   that can be downloaded from the Cadenza portal.
 
-- [`adapter`](./parser/README.md):
+- [`adapter`](./adapter/README.md):
   A tool to adapt the data types that `nlwkn-rs` is working on and reformat it 
   for other tools or people to use.
 
