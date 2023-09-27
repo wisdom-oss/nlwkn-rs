@@ -1,7 +1,6 @@
 use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
-use std::io::stderr;
 use std::str::FromStr;
 
 use lazy_static::lazy_static;
@@ -376,7 +375,7 @@ where
         let any = Value::deserialize(deserializer)?;
         match serde_json::from_value::<T>(any.clone()) {
             Ok(value) => Ok(OrFallback::Expected(value)),
-            Err(e) => match any {
+            Err(_) => match any {
                 Value::String(s) => Ok(OrFallback::Fallback(s)),
                 Value::Null => Err(D::Error::custom("expected string, got null")),
                 Value::Bool(b) => Err(D::Error::custom(format!("expected string, got {b}"))),
