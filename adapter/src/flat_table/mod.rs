@@ -1,7 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::{Display, Formatter, Write};
+use std::fmt::{Write};
 
-use futures::StreamExt;
 use itertools::Itertools;
 pub use key::*;
 use nlwkn::{WaterRight, WaterRightNo};

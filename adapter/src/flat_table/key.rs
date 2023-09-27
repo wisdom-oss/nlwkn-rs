@@ -1,12 +1,9 @@
 use std::borrow::Cow;
 use std::cmp::Ordering;
-use std::fmt::{Display, Formatter};
 use std::marker::PhantomData;
 use std::mem;
 
 use itertools::Itertools;
-
-use crate::flat_table::value::FlatTableValue;
 
 pub enum FlatTableKey<M> {
     Multiple {
@@ -31,8 +28,8 @@ impl FlatTableKey<marker::Unselect> {
         Self::from_str("dam target level max", "Höchststau");
     pub const DAM_TARGETS_STEADY: FlatTableKey<marker::Unselect> =
         Self::from_str("dam target level steady", "Dauerstau");
-    pub const DAM_TARGET_LEVELS: FlatTableKey<marker::Unselect> =
-        Self::from_str("dam target levels", "Stauziele");
+    // pub const DAM_TARGET_LEVELS: FlatTableKey<marker::Unselect> =
+    //     Self::from_str("dam target levels", "Stauziele");
     pub const DATE_OF_CHANGE: FlatTableKey<marker::Unselect> =
         Self::from_str("date of change", "Änderungsdatum");
     pub const EU_SURVEY_AREA: FlatTableKey<marker::Unselect> =
@@ -51,8 +48,8 @@ impl FlatTableKey<marker::Unselect> {
         Self::from_str("granting authority", "Erteilende Behörde");
     pub const GROUNDWATER_BODY: FlatTableKey<marker::Unselect> =
         Self::from_str("groundwater body", "Grundwasserkörper");
-    pub const INJECTION_LIMIT: FlatTableKey<marker::Unselect> =
-        Self::from_str("injection limit", "Erlaubniswert");
+    // pub const INJECTION_LIMIT: FlatTableKey<marker::Unselect> =
+    //     Self::from_str("injection limit", "Erlaubniswert");
     pub const INJECTION_RATE: FlatTableKey<marker::Unselect> =
         Self::from_str("injection rate", "Einleitungsmenge");
     pub const IRRIGATION_AREA: FlatTableKey<marker::Unselect> =
@@ -73,7 +70,7 @@ impl FlatTableKey<marker::Unselect> {
         Self::from_str("municipal area", "Gemeindegebiet");
     pub const NO: FlatTableKey<marker::Unselect> =
         Self::from_str("water right no.", "Wasserrecht Nr.");
-    pub const PH_VALUES: FlatTableKey<marker::Unselect> = Self::from_str("ph values", "pH-Werte");
+    // pub const PH_VALUES: FlatTableKey<marker::Unselect> = Self::from_str("ph values", "pH-Werte");
     pub const PH_VALUES_MAX: FlatTableKey<marker::Unselect> =
         Self::from_str("ph values max", "pH-Werte max");
     pub const PH_VALUES_MIN: FlatTableKey<marker::Unselect> =

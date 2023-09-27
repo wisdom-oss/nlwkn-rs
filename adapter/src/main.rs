@@ -1,4 +1,3 @@
-use std::fmt::Display;
 use std::fs;
 use std::fs::File;
 use std::io::Write;
@@ -6,11 +5,10 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use args::{Args, Format, Lang};
-use clap::{Parser, ValueEnum};
-use console::Color;
+use clap::{Parser};
 use indicatif::ProgressBar;
 use lazy_static::lazy_static;
-use nlwkn::cli::{progress_message, PROGRESS_STYLE, PROGRESS_UPDATE_INTERVAL, SPINNER_STYLE};
+use nlwkn::cli::{PROGRESS_STYLE, PROGRESS_UPDATE_INTERVAL, SPINNER_STYLE};
 use nlwkn::WaterRight;
 
 use crate::flat_table::{FlatTable, Progress};
