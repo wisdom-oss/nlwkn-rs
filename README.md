@@ -32,15 +32,15 @@ a map.
 `lib`: Contains shared code that all tools utilize.
 Each tool resides in its own dedicated directory:
 
-- `fetcher`: 
+- [`fetcher`](./fetcher/README.md): 
   Contains the tool to fetch water rights in PDF format from the Cadenza 
   database.
 
-- `parser`: 
+- [`parser`](./parser/README.md): 
   Houses the tool to parse these PDF reports and enrich them using an XLSX table 
   that can be downloaded from the Cadenza portal.
 
-- `adapter`:
+- [`adapter`](./parser/README.md):
   A tool to adapt the data types that `nlwkn-rs` is working on and reformat it 
   for other tools or people to use.
 
