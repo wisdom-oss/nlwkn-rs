@@ -70,7 +70,8 @@ impl FlatTableKey<marker::Unselect> {
         Self::from_str("municipal area", "Gemeindegebiet");
     pub const NO: FlatTableKey<marker::Unselect> =
         Self::from_str("water right no.", "Wasserrecht Nr.");
-    // pub const PH_VALUES: FlatTableKey<marker::Unselect> = Self::from_str("ph values", "pH-Werte");
+    // pub const PH_VALUES: FlatTableKey<marker::Unselect> =
+    //     Self::from_str("phvalues", "pH-Werte");
     pub const PH_VALUES_MAX: FlatTableKey<marker::Unselect> =
         Self::from_str("ph values max", "pH-Werte max");
     pub const PH_VALUES_MIN: FlatTableKey<marker::Unselect> =

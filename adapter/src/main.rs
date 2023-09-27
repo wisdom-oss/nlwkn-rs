@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use args::{Args, Format, Lang};
-use clap::{Parser};
+use clap::Parser;
 use indicatif::ProgressBar;
 use lazy_static::lazy_static;
 use nlwkn::cli::{PROGRESS_STYLE, PROGRESS_UPDATE_INTERVAL, SPINNER_STYLE};

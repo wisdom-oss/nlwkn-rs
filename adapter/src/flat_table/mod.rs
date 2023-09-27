@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::{Write};
+use std::fmt::Write;
 
 use itertools::Itertools;
 pub use key::*;
