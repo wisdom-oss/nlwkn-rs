@@ -299,25 +299,31 @@ fn parsing_task(
             .iter_mut()
             .flat_map(|(_, department)| department.usage_locations.iter_mut())
         {
-            let Some(usage_location_no) = relevant_cadenza_rows
-                .values()
-                .find(|row| {
-                    row.no == water_right_no &&
-                        usage_location.name.is_some() &&
-                        row.usage_location == usage_location.name
-                })
-                .map(|ul| ul.usage_location_no)
-            else {
-                progress_message(
-                    &PROGRESS,
-                    "Warning",
-                    Color::Yellow,
-                    format!(
-                        "could not find usage location no for report {water_right_no}, enrichment \
-                         may be missing values"
-                    )
-                );
-                continue;
+            let usage_location_by_name = relevant_cadenza_rows.values().find(|row| {
+                usage_location.name.is_some() && row.usage_location == usage_location.name
+            });
+            let usage_location_by_coords = relevant_cadenza_rows.values().find(|row| {
+                usage_location.utm_easting.is_some() &&
+                    row.utm_easting == usage_location.utm_easting &&
+                    usage_location.utm_northing.is_some() &&
+                    row.utm_northing == usage_location.utm_northing
+            });
+
+            let usage_location_no = match (usage_location_by_name, usage_location_by_coords) {
+                (Some(usage_location), _) |
+                (None, Some(usage_location)) => usage_location.usage_location_no,
+                (None, None) => {
+                    progress_message(
+                        &PROGRESS,
+                        "Warning",
+                        Color::Yellow,
+                        format!(
+                            "could not find usage location no for report {water_right_no}, \
+                            enrichment may be missing values"
+                        )
+                    );
+                    continue;
+                }
             };
 
             let row = relevant_cadenza_rows
