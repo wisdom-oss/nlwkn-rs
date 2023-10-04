@@ -189,7 +189,9 @@ fn parse_allowance_value(
         "Abwasservolumenstrom, Sekunde" |
         "Abwasservolumenstrom, RW, Sekunde" |
         "Abwasservolumenstrom, Std." |
+        "Abwasservolumenstrom, RW, Std." |
         "Abwasservolumenstrom, Tag" |
+        "Abwasservolumenstrom, RW, Tag" |
         "Abwasservolumenstrom, Jahr" |
         "Abwasservolumenstrom, RW, Jahr" => {
             usage_location.waste_water_flow_volume.insert(rate);
@@ -203,7 +205,7 @@ fn parse_allowance_value(
         "Ableitungsmenge" => {
             usage_location.fluid_discharge.insert(rate);
         }
-        a if matches!(department, B | C | F) => {
+        a if matches!(department, A | B | C | F) => {
             usage_location.injection_limit.push((a.to_string(), Quantity {
                 value: value.parse()?,
                 unit: unit.to_string()
