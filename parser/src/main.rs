@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Display, Formatter};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -13,7 +13,7 @@ use indicatif::ProgressBar;
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use lopdf::Document;
-use nlwkn::cadenza::CadenzaTable;
+use nlwkn::cadenza::{CadenzaTable};
 use nlwkn::cli::{progress_message, PROGRESS_STYLE, PROGRESS_UPDATE_INTERVAL, SPINNER_STYLE};
 use nlwkn::util::{zero_is_none, OptionUpdate};
 use nlwkn::{WaterRight, WaterRightNo};
@@ -287,19 +287,42 @@ fn parsing_task(
             wr.address.update_if_none_clone(row.address.as_ref());
         }
 
+        let mut relevant_cadenza_rows: HashMap<_, _> = cadenza_table
+            .rows()
+            .iter()
+            .filter(|row| row.no == water_right_no)
+            .map(|row| (row.usage_location_no, row))
+            .collect();
+
         for usage_location in water_right
             .legal_departments
             .iter_mut()
             .flat_map(|(_, department)| department.usage_locations.iter_mut())
         {
-            let Some(row) = cadenza_table.rows().iter().find(|row| {
-                row.no == water_right_no &&
-                    usage_location.name.is_some() &&
-                    row.usage_location == usage_location.name
-            })
+            let Some(usage_location_no) = relevant_cadenza_rows
+                .values()
+                .find(|row| {
+                    row.no == water_right_no &&
+                        usage_location.name.is_some() &&
+                        row.usage_location == usage_location.name
+                })
+                .map(|ul| ul.usage_location_no)
             else {
+                progress_message(
+                    &PROGRESS,
+                    "Warning",
+                    Color::Yellow,
+                    format!(
+                        "could not find usage location no for report {water_right_no}, enrichment \
+                         may be missing values"
+                    )
+                );
                 continue;
             };
+
+            let row = relevant_cadenza_rows
+                .remove(&usage_location_no)
+                .expect("we got the no from the that map");
 
             let ul = usage_location;
             ul.no.update_if_none(Some(row.usage_location_no));
@@ -319,6 +342,19 @@ fn parsing_task(
             // sanitize coordinates
             ul.utm_easting = ul.utm_easting.and_then(zero_is_none);
             ul.utm_northing = ul.utm_northing.and_then(zero_is_none);
+        }
+
+        if !relevant_cadenza_rows.is_empty() {
+            let missing_locations = relevant_cadenza_rows.keys().collect::<Vec<_>>();
+            progress_message(
+                &PROGRESS,
+                "Warning",
+                Color::Yellow,
+                format!(
+                    "in the report {} the usage locations {:?} are missing",
+                    water_right_no, missing_locations
+                )
+            );
         }
 
         // remove "Bemerkung: " from annotations if they begin with that
