@@ -76,7 +76,7 @@ fn group_usage_locations(
 
     while let Some(peek) = iter.peek() {
         match peek.0.as_str() {
-            "Abteilung:" => return usage_locations,
+            "Abteilung:" => break,
             "Nutzungsort Lfd. Nr.:" => {
                 if !usage_location.is_empty() {
                     usage_locations.push(usage_location);
