@@ -13,7 +13,7 @@ use indicatif::ProgressBar;
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use lopdf::Document;
-use nlwkn::cadenza::{CadenzaTable};
+use nlwkn::cadenza::CadenzaTable;
 use nlwkn::cli::{progress_message, PROGRESS_STYLE, PROGRESS_UPDATE_INTERVAL, SPINNER_STYLE};
 use nlwkn::util::{zero_is_none, OptionUpdate};
 use nlwkn::{WaterRight, WaterRightNo};
@@ -310,8 +310,9 @@ fn parsing_task(
             });
 
             let usage_location_no = match (usage_location_by_name, usage_location_by_coords) {
-                (Some(usage_location), _) |
-                (None, Some(usage_location)) => usage_location.usage_location_no,
+                (Some(usage_location), _) | (None, Some(usage_location)) => {
+                    usage_location.usage_location_no
+                }
                 (None, None) => {
                     progress_message(
                         &PROGRESS,
@@ -319,7 +320,7 @@ fn parsing_task(
                         Color::Yellow,
                         format!(
                             "could not find usage location no for report {water_right_no}, \
-                            enrichment may be missing values"
+                             enrichment may be missing values"
                         )
                     );
                     continue;
