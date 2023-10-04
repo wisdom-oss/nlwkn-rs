@@ -73,7 +73,7 @@ fn parse_usage_location(
                 usage_location.active = Some(&captured["active"] == "aktiv");
                 usage_location.real = Some(&captured["real"] == "real");
             }
-            ("Bezeichnung:", v, _) => usage_location.name = v,
+            ("Bezeichnung:", v, _) => usage_location.name = v.map(|s| s.replace('\n', " ")),
             ("Rechtszweck:", Some(v), _) => {
                 usage_location.legal_purpose =
                     v.splitn(2, ' ').map(ToString::to_string).collect_tuple()
