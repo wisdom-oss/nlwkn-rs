@@ -10,7 +10,7 @@ use crate::WaterRightNo;
 #[derive(Debug)]
 pub struct CadenzaTable(Vec<CadenzaTableRow>);
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize, Eq, Hash)]
 #[cfg_attr(test, derive(Default))]
 #[serde(deny_unknown_fields)]
 pub struct CadenzaTableRow {
@@ -148,6 +148,12 @@ impl CadenzaTable {
             row.flood_area = row.flood_area.take().sanitize();
             row.water_protection_area = row.water_protection_area.take().sanitize();
         }
+    }
+}
+
+impl PartialEq for CadenzaTableRow {
+    fn eq(&self, other: &Self) -> bool {
+        self.no == other.no && self.usage_location_no == other.usage_location_no
     }
 }
 
