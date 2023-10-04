@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::hash::{Hash, Hasher};
 use std::path::Path;
 
 use calamine::{RangeDeserializerBuilder, Reader, Xlsx};
@@ -10,7 +11,7 @@ use crate::WaterRightNo;
 #[derive(Debug)]
 pub struct CadenzaTable(Vec<CadenzaTableRow>);
 
-#[derive(Debug, Deserialize, Eq, Hash)]
+#[derive(Debug, Deserialize, Eq)]
 #[cfg_attr(test, derive(Default))]
 #[serde(deny_unknown_fields)]
 pub struct CadenzaTableRow {
@@ -154,6 +155,12 @@ impl CadenzaTable {
 impl PartialEq for CadenzaTableRow {
     fn eq(&self, other: &Self) -> bool {
         self.no == other.no && self.usage_location_no == other.usage_location_no
+    }
+}
+
+impl Hash for CadenzaTableRow {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        (self.no, self.usage_location_no).hash(state)
     }
 }
 
