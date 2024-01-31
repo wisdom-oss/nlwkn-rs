@@ -1,5 +1,6 @@
 use arti_client::TorClient;
 use lazy_static::lazy_static;
+use tor_config::Listen;
 use tor_rtcompat::PreferredRuntime;
 
 lazy_static! {
@@ -9,5 +10,6 @@ lazy_static! {
 pub async fn start_socks_proxy() -> anyhow::Result<()> {
     let tor_runtime = PreferredRuntime::current()?;
     let tor_client = TorClient::with_runtime(tor_runtime.clone()).create_bootstrapped().await?;
-    arti::socks::run_socks_proxy(tor_runtime, tor_client, *SOCKS_PORT).await
+    let listen = Listen::new_localhost(*SOCKS_PORT);
+    arti::socks::run_socks_proxy(tor_runtime, tor_client, listen).await
 }
