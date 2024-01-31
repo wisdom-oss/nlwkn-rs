@@ -56,7 +56,7 @@ where
         #[deny(unused_variables)]
         let WaterRight {
             no,
-            rights_holder,
+            holder,
             valid_until,
             status,
             valid_from,
@@ -64,8 +64,8 @@ where
             water_authority,
             registering_authority,
             granting_authority,
-            first_grant,
-            date_of_change,
+            initially_granted,
+            last_change,
             file_reference,
             external_identifier,
             subject,
@@ -75,7 +75,7 @@ where
         } = water_right;
 
         insert_into_row(&mut row, FlatTableKey::NO, Some(no.clone()));
-        insert_into_row(&mut row, FlatTableKey::RIGHTS_HOLDER, rights_holder.clone());
+        insert_into_row(&mut row, FlatTableKey::HOLDER, holder.clone());
         insert_into_row(&mut row, FlatTableKey::VALID_UNTIL, valid_until.clone());
         insert_into_row(&mut row, FlatTableKey::STATUS, status.clone());
         insert_into_row(&mut row, FlatTableKey::VALID_FROM, valid_from.clone());
@@ -95,11 +95,11 @@ where
             FlatTableKey::GRANTING_AUTHORITY,
             granting_authority.clone()
         );
-        insert_into_row(&mut row, FlatTableKey::FIRST_GRANT, first_grant.clone());
+        insert_into_row(&mut row, FlatTableKey::INITIALLY_GRANTED, initially_granted.clone());
         insert_into_row(
             &mut row,
-            FlatTableKey::DATE_OF_CHANGE,
-            date_of_change.clone()
+            FlatTableKey::LAST_CHANGE,
+            last_change.clone()
         );
         insert_into_row(
             &mut row,
@@ -158,23 +158,23 @@ where
     #[deny(unused_variables)]
     let UsageLocation {
         no,
-        serial_no,
+        serial,
         active,
         real,
         name,
         legal_purpose,
-        top_map_1_25000,
+        map_excerpt,
         municipal_area,
         county,
         land_record,
         plot,
         maintenance_association,
         eu_survey_area,
-        basin_code,
+        catchment_area_code,
         regulation_citation,
-        withdrawal_rate,
-        pumping_rate,
-        injection_rate,
+        withdrawal_rates,
+        pumping_rates,
+        injection_rates,
         waste_water_flow_volume,
         river_basin,
         groundwater_body,
@@ -186,7 +186,7 @@ where
         rain_supplement,
         irrigation_area,
         ph_values,
-        injection_limit,
+        injection_limits,
         utm_easting,
         utm_northing
     } = usage_location;
@@ -195,8 +195,8 @@ where
     insert_into_row(&mut row, FlatTableKey::USAGE_LOCATION_NO, no.clone());
     insert_into_row(
         &mut row,
-        FlatTableKey::USAGE_LOCATION_SERIAL_NO,
-        serial_no.clone()
+        FlatTableKey::USAGE_LOCATION_SERIAL,
+        serial.clone()
     );
     insert_into_row(&mut row, FlatTableKey::ACTIVE, active.clone());
     insert_into_row(&mut row, FlatTableKey::REAL, real.clone());
@@ -208,8 +208,8 @@ where
     );
     insert_into_row(
         &mut row,
-        FlatTableKey::TOP_MAP_1_25000,
-        top_map_1_25000.as_ref().map(ToString::to_string)
+        FlatTableKey::MAP_EXCERPT,
+        map_excerpt.as_ref().map(ToString::to_string)
     );
     insert_into_row(
         &mut row,
@@ -224,12 +224,12 @@ where
             insert_into_row(&mut row, FlatTableKey::LAND_RECORD, Some(s.clone()))
         }
         Some(OrFallback::Expected(LandRecord {
-            register_district,
-            field_number
+            district,
+            field
         })) => insert_into_row(
             &mut row,
             FlatTableKey::LAND_RECORD,
-            Some(format!("{register_district}{field_number}"))
+            Some(format!("{district}{field}"))
         )
     }
 
@@ -246,17 +246,17 @@ where
     );
     insert_into_row(
         &mut row,
-        FlatTableKey::BASIN_CODE,
-        basin_code.as_ref().map(ToString::to_string)
+        FlatTableKey::CATCHMENT_AREA_CODE,
+        catchment_area_code.as_ref().map(ToString::to_string)
     );
     insert_into_row(
         &mut row,
         FlatTableKey::REGULATION_CITATION,
         regulation_citation.clone()
     );
-    insert_rate_record_into_row(&mut row, FlatTableKey::WITHDRAWAL_RATE, withdrawal_rate);
-    insert_rate_record_into_row(&mut row, FlatTableKey::PUMPING_RATE, pumping_rate);
-    insert_rate_record_into_row(&mut row, FlatTableKey::INJECTION_RATE, injection_rate);
+    insert_rate_record_into_row(&mut row, FlatTableKey::WITHDRAWAL_RATE, withdrawal_rates);
+    insert_rate_record_into_row(&mut row, FlatTableKey::PUMPING_RATE, pumping_rates);
+    insert_rate_record_into_row(&mut row, FlatTableKey::INJECTION_RATE, injection_rates);
     insert_rate_record_into_row(
         &mut row,
         FlatTableKey::WASTER_WATER_FLOW_VOLUME,
@@ -308,7 +308,7 @@ where
         ph_values.as_ref().map(|v| v.max).flatten()
     );
 
-    for (key, quantity) in injection_limit.iter() {
+    for (key, quantity) in injection_limits.iter() {
         row.insert(FlatTableKey::from(key.clone()), quantity.to_string().into());
     }
 
