@@ -34,11 +34,11 @@ pub fn insert_rate_record_into_row<M>(
     }) {
         let key: FlatTableKey<M> = FlatTableKey::Multiple {
             phantom: PhantomData,
-            de: format!("{}/{}", key.ref_de(), rate.time).into(),
-            en: format!("{}/{}", key.ref_en(), rate.time).into()
+            de: format!("{}/{}", key.ref_de(), rate.per).into(),
+            en: format!("{}/{}", key.ref_en(), rate.per).into()
         };
 
-        row.insert(key, format!("{} {}", rate.value, rate.measurement).into());
+        row.insert(key, format!("{} {}", rate.value, rate.unit).into());
     }
 }
 

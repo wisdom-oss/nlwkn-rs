@@ -14,8 +14,8 @@ use crate::util::Near;
 #[derive(Debug)]
 pub struct Rate<T> {
     pub value: T,
-    pub measurement: String,
-    pub time: Duration
+    pub unit: String,
+    pub per: Duration
 }
 
 impl<T> PartialEq for Rate<T>
@@ -23,7 +23,7 @@ where
     T: PartialEq
 {
     fn eq(&self, other: &Self) -> bool {
-        self.time == other.time && self.value == other.value
+        self.per == other.per && self.value == other.value
     }
 }
 
@@ -43,7 +43,7 @@ where
     T: PartialEq
 {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.time.cmp(&other.time)
+        self.per.cmp(&other.per)
     }
 }
 
@@ -55,7 +55,7 @@ where
     where
         S: Serializer
     {
-        (&self.value, &self.measurement, &self.time).serialize(serializer)
+        (&self.value, &self.unit, &self.per).serialize(serializer)
     }
 }
 
@@ -70,8 +70,8 @@ where
         let (value, measurement, time) = <(T, String, Duration)>::deserialize(deserializer)?;
         Ok(Rate {
             value,
-            measurement,
-            time
+            unit: measurement,
+            per: time
         })
     }
 }
@@ -116,8 +116,8 @@ impl FromStr for Rate<f64> {
 
         Ok(Rate {
             value,
-            measurement,
-            time
+            unit: measurement,
+            per: time
         })
     }
 }
