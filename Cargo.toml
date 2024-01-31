@@ -90,3 +90,6 @@ features = [
     "tokio",
     "rustls"
 ]
+
+[dependencies.tor-config]
+version = "0.10"
