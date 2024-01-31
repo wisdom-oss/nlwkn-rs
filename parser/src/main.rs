@@ -441,7 +441,7 @@ fn save_results(
     // save parsed reports
 
     let reports_json_path = {
-        let mut path: PathBuf = data_path.clone().into();
+        let mut path: PathBuf = data_path.into();
         path.push("reports.json");
         path
     };
@@ -462,7 +462,7 @@ fn save_results(
     // save pdf only reports
 
     let pdf_only_reports_json_path = {
-        let mut path: PathBuf = data_path.clone().into();
+        let mut path: PathBuf = data_path.into();
         path.push("pdf-only-reports.json");
         path
     };
@@ -494,7 +494,7 @@ fn save_results(
     };
 
     let broken_reports_path = {
-        let mut path: PathBuf = data_path.clone().into();
+        let mut path: PathBuf = data_path.into();
         path.push("broken-reports.json");
         path
     };
@@ -511,7 +511,7 @@ fn save_results(
     };
 
     let parsing_issues_path = {
-        let mut path: PathBuf = data_path.clone().into();
+        let mut path: PathBuf = data_path.into();
         path.push("parsing-issues.json");
         path
     };
