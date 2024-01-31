@@ -26,10 +26,10 @@ tokio = { version = "1", features = ["full"] }
 futures = "0.3"
 
 # reading xlsx
-calamine = { version = "0.21", features = ["dates"] }
+calamine = { version = "0.23", features = ["dates"] }
 
 # reading pdf
-lopdf = "0.31"
+lopdf = "0.32"
 
 # data serialization
 serde = { version = "1", features = ["derive"] }
@@ -47,8 +47,8 @@ static-toml = "1"
 portpicker = "0.1"
 lazy_static = "1"
 regex = "1"
-itertools = "0.11"
-rayon = "1.7"
+itertools = "0.12"
+rayon = "1.8"
 
 # error handling
 anyhow = "1"
@@ -72,7 +72,7 @@ features = [
 ]
 
 [dependencies.arti-client]
-version = "0.10"
+version = "0.13"
 default-features = false
 features = [
     "tokio",
