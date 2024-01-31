@@ -274,14 +274,14 @@ fn parsing_task(
         for row in cadenza_table.rows().iter().filter(|row| row.no == water_right_no) {
             enriched = true;
             let wr = &mut water_right;
-            wr.rights_holder.update_if_none_clone(row.rights_holder.as_ref());
+            wr.holder.update_if_none_clone(row.rights_holder.as_ref());
             wr.valid_until.update_if_none_clone(row.valid_until.as_ref());
             wr.status.update_if_none_clone(row.status.as_ref());
             wr.valid_from.update_if_none_clone(row.valid_from.as_ref());
             wr.legal_title.update_if_none_clone(row.legal_title.as_ref());
             wr.water_authority.update_if_none_clone(row.water_authority.as_ref());
             wr.granting_authority.update_if_none_clone(row.granting_authority.as_ref());
-            wr.date_of_change.update_if_none_clone(row.date_of_change.as_ref());
+            wr.last_change.update_if_none_clone(row.date_of_change.as_ref());
             wr.file_reference.update_if_none_clone(row.file_reference.as_ref());
             wr.external_identifier.update_if_none_clone(row.external_identifier.as_ref());
             wr.address.update_if_none_clone(row.address.as_ref());
@@ -391,8 +391,8 @@ fn parsing_task(
         for date_opt in [
             &mut water_right.valid_until,
             &mut water_right.valid_from,
-            &mut water_right.first_grant,
-            &mut water_right.date_of_change
+            &mut water_right.initially_granted,
+            &mut water_right.last_change
         ] {
             let Some(date) = date_opt.as_ref()
             else {
