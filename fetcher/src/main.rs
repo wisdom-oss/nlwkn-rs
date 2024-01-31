@@ -166,7 +166,7 @@ fn sort_cadenza_table(a: &CadenzaTableRow, b: &CadenzaTableRow) -> Ordering {
     let b_has_e = b.legal_department.starts_with("Entnahme");
 
     // also prioritize some counties
-    let prioritized_counties = vec!["Aurich", "Wittmund", "Friesland", "Leer"];
+    let prioritized_counties = ["Aurich", "Wittmund", "Friesland", "Leer"];
     let a_in_county = match a.county.as_deref() {
         Some(county) => prioritized_counties.contains(&county),
         None => false

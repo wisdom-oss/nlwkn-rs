@@ -51,7 +51,7 @@ where
         rows.append(&mut flatten_legal_department(ld));
     }
 
-    for mut row in rows.iter_mut() {
+    for row in rows.iter_mut() {
         // destructure the water right to make sure every field of it is used
         #[deny(unused_variables)]
         let WaterRight {
@@ -74,46 +74,46 @@ where
             legal_departments: _
         } = water_right;
 
-        insert_into_row(&mut row, FlatTableKey::NO, Some(no.clone()));
-        insert_into_row(&mut row, FlatTableKey::HOLDER, holder.clone());
-        insert_into_row(&mut row, FlatTableKey::VALID_UNTIL, valid_until.clone());
-        insert_into_row(&mut row, FlatTableKey::STATUS, status.clone());
-        insert_into_row(&mut row, FlatTableKey::VALID_FROM, valid_from.clone());
-        insert_into_row(&mut row, FlatTableKey::LEGAL_TITLE, legal_title.clone());
+        insert_into_row(row, FlatTableKey::NO, Some(*no));
+        insert_into_row(row, FlatTableKey::HOLDER, holder.clone());
+        insert_into_row(row, FlatTableKey::VALID_UNTIL, valid_until.clone());
+        insert_into_row(row, FlatTableKey::STATUS, status.clone());
+        insert_into_row(row, FlatTableKey::VALID_FROM, valid_from.clone());
+        insert_into_row(row, FlatTableKey::LEGAL_TITLE, legal_title.clone());
         insert_into_row(
-            &mut row,
+            row,
             FlatTableKey::WATER_AUTHORITY,
             water_authority.clone()
         );
         insert_into_row(
-            &mut row,
+            row,
             FlatTableKey::REGISTERING_AUTHORITY,
             registering_authority.clone()
         );
         insert_into_row(
-            &mut row,
+            row,
             FlatTableKey::GRANTING_AUTHORITY,
             granting_authority.clone()
         );
-        insert_into_row(&mut row, FlatTableKey::INITIALLY_GRANTED, initially_granted.clone());
+        insert_into_row(row, FlatTableKey::INITIALLY_GRANTED, initially_granted.clone());
         insert_into_row(
-            &mut row,
+            row,
             FlatTableKey::LAST_CHANGE,
             last_change.clone()
         );
         insert_into_row(
-            &mut row,
+            row,
             FlatTableKey::FILE_REFERENCE,
             file_reference.clone()
         );
         insert_into_row(
-            &mut row,
+            row,
             FlatTableKey::EXTERNAL_IDENTIFIER,
             external_identifier.clone()
         );
-        insert_into_row(&mut row, FlatTableKey::SUBJECT, subject.clone());
-        insert_into_row(&mut row, FlatTableKey::ADDRESS, address.clone());
-        insert_into_row(&mut row, FlatTableKey::ANNOTATION, annotation.clone());
+        insert_into_row(row, FlatTableKey::SUBJECT, subject.clone());
+        insert_into_row(row, FlatTableKey::ADDRESS, address.clone());
+        insert_into_row(row, FlatTableKey::ANNOTATION, annotation.clone());
     }
 
     rows
@@ -192,14 +192,14 @@ where
     } = usage_location;
 
     let mut row = FlatTableRow::new();
-    insert_into_row(&mut row, FlatTableKey::USAGE_LOCATION_NO, no.clone());
+    insert_into_row(&mut row, FlatTableKey::USAGE_LOCATION_NO, *no);
     insert_into_row(
         &mut row,
         FlatTableKey::USAGE_LOCATION_SERIAL,
         serial.clone()
     );
-    insert_into_row(&mut row, FlatTableKey::ACTIVE, active.clone());
-    insert_into_row(&mut row, FlatTableKey::REAL, real.clone());
+    insert_into_row(&mut row, FlatTableKey::ACTIVE, *active);
+    insert_into_row(&mut row, FlatTableKey::REAL, *real);
     insert_into_row(&mut row, FlatTableKey::USAGE_LOCATION_NAME, name.clone());
     insert_into_row(
         &mut row,
@@ -300,20 +300,20 @@ where
     insert_into_row(
         &mut row,
         FlatTableKey::PH_VALUES_MIN,
-        ph_values.as_ref().map(|v| v.min).flatten()
+        ph_values.as_ref().and_then(|v| v.min)
     );
     insert_into_row(
         &mut row,
         FlatTableKey::PH_VALUES_MAX,
-        ph_values.as_ref().map(|v| v.max).flatten()
+        ph_values.as_ref().and_then(|v| v.max)
     );
 
     for (key, quantity) in injection_limits.iter() {
         row.insert(FlatTableKey::from(key.clone()), quantity.to_string().into());
     }
 
-    insert_into_row(&mut row, FlatTableKey::UTM_EASTING, utm_easting.clone());
-    insert_into_row(&mut row, FlatTableKey::UTM_NORTHING, utm_northing.clone());
+    insert_into_row(&mut row, FlatTableKey::UTM_EASTING, *utm_easting);
+    insert_into_row(&mut row, FlatTableKey::UTM_NORTHING, *utm_northing);
 
     row
 }

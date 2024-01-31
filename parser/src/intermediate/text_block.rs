@@ -94,7 +94,7 @@ fn handle_tf(text_block: &mut TextBlock, operands: &[Object]) {
         return;
     }
 
-    text_block.font_family = match operands.get(0) {
+    text_block.font_family = match operands.first() {
         Some(Object::String(s, StringFormat::Literal)) => {
             Some(lopdf::Document::decode_text(Some(ENCODING), s))
         }
@@ -128,7 +128,7 @@ fn handle_rg(text_block: &mut TextBlock, operands: &[Object]) {
         return;
     }
 
-    let r = match operands.get(0) {
+    let r = match operands.first() {
         Some(Object::Real(r)) => Some(*r),
         Some(Object::Integer(i)) => Some(*i as f32),
         Some(_) => {
@@ -148,7 +148,7 @@ fn handle_rg(text_block: &mut TextBlock, operands: &[Object]) {
         _ => None
     };
 
-    let b = match operands.get(0) {
+    let b = match operands.first() {
         Some(Object::Real(r)) => Some(*r),
         Some(Object::Integer(i)) => Some(*i as f32),
         Some(_) => {
