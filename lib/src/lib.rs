@@ -67,6 +67,10 @@ data_structs! {
         /// "Adresse"
         address?: String,
 
+        /// The usage locations of a water right are split into multiple legal
+        /// departments.
+        /// This map holds all legal departments available in a water right and
+        /// their corresponding usage locations.
         legal_departments: HashMap<LegalDepartmentAbbreviation, LegalDepartment>,
 
         /// "Bemerkung"
