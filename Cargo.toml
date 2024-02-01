@@ -57,6 +57,10 @@ rayon = "1.8"
 # error handling
 anyhow = "1"
 
+# postgres
+postgres = "0.19"
+postgres-types = "0.2"
+
 # http requests
 [dependencies.reqwest]
 version = "0.11"
