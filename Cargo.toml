@@ -20,6 +20,10 @@ path = "parser/src/main.rs"
 name = "adapter"
 path = "adapter/src/main.rs"
 
+[[bin]]
+name = "exporter"
+path = "exporter/src/main.rs"
+
 [dependencies]
 # async runtime
 tokio = { version = "1", features = ["full"] }
