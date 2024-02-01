@@ -1,0 +1,4 @@
+[submodule "deps/service/water-rights"]
+	path = deps/service/water-rights
+	url = git@github.com:wisdom-oss/service-water-rights.git
+	branch = feature/updated-dataschema
