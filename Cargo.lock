@@ -2100,6 +2100,7 @@ dependencies = [
  "serde_json",
  "serde_with",
  "static-toml",
+ "thiserror",
  "tokio",
  "tor-config",
  "tor-rtcompat",
