@@ -6,7 +6,6 @@ pub use key::*;
 use nlwkn::{WaterRight, WaterRightNo};
 use rayon::prelude::*;
 
-
 use crate::flat_table::key::FlatTableKey;
 use crate::flat_table::value::FlatTableValue;
 

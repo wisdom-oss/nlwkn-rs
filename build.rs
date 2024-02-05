@@ -3,7 +3,8 @@ use std::{fs, process};
 const REQUIRED_SUBMODULE_FILES: &[&str] = &["deps/service/water-rights/resources/init.sql"];
 
 fn main() {
-    // ensure that required files may be found before actual code compiles and confuses the user
+    // ensure that required files may be found before actual code compiles and
+    // confuses the user
     for file in REQUIRED_SUBMODULE_FILES {
         let file_exists = fs::metadata(file).is_ok();
         if !file_exists {

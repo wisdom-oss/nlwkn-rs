@@ -28,18 +28,12 @@ impl FlatTableKey<marker::Unselect> {
         Self::from_str("dam target level max", "Höchststau");
     pub const DAM_TARGETS_STEADY: FlatTableKey<marker::Unselect> =
         Self::from_str("dam target level steady", "Dauerstau");
-    // pub const DAM_TARGET_LEVELS: FlatTableKey<marker::Unselect> =
-    //     Self::from_str("dam target levels", "Stauziele");
-    pub const LAST_CHANGE: FlatTableKey<marker::Unselect> =
-        Self::from_str("last change", "Änderungsdatum");
     pub const EU_SURVEY_AREA: FlatTableKey<marker::Unselect> =
         Self::from_str("eu survey area", "EU-Bearbeitungsgebiet");
     pub const EXTERNAL_IDENTIFIER: FlatTableKey<marker::Unselect> =
         Self::from_str("external identifier", "Externe Kennung");
     pub const FILE_REFERENCE: FlatTableKey<marker::Unselect> =
         Self::from_str("file reference", "Aktenzeichen");
-    pub const INITIALLY_GRANTED: FlatTableKey<marker::Unselect> =
-        Self::from_str("first grant", "erstmalig erstellt am");
     pub const FLOOD_AREA: FlatTableKey<marker::Unselect> =
         Self::from_str("flood area", "Überschwemmungsgebiet");
     pub const FLUID_DISCHARGE: FlatTableKey<marker::Unselect> =
@@ -48,6 +42,9 @@ impl FlatTableKey<marker::Unselect> {
         Self::from_str("granting authority", "Erteilende Behörde");
     pub const GROUNDWATER_BODY: FlatTableKey<marker::Unselect> =
         Self::from_str("groundwater body", "Grundwasserkörper");
+    pub const HOLDER: FlatTableKey<marker::Unselect> = Self::from_str("holder", "Rechtsinhaber");
+    pub const INITIALLY_GRANTED: FlatTableKey<marker::Unselect> =
+        Self::from_str("first grant", "erstmalig erstellt am");
     // pub const INJECTION_LIMIT: FlatTableKey<marker::Unselect> =
     //     Self::from_str("injection limit", "Erlaubniswert");
     pub const INJECTION_RATE: FlatTableKey<marker::Unselect> =
@@ -56,6 +53,10 @@ impl FlatTableKey<marker::Unselect> {
         Self::from_str("irrigation area", "Beregnungsfläche");
     pub const LAND_RECORD: FlatTableKey<marker::Unselect> =
         Self::from_str("land record", "Gemarkung, Flur");
+    // pub const DAM_TARGET_LEVELS: FlatTableKey<marker::Unselect> =
+    //     Self::from_str("dam target levels", "Stauziele");
+    pub const LAST_CHANGE: FlatTableKey<marker::Unselect> =
+        Self::from_str("last change", "Änderungsdatum");
     pub const LEGAL_DEPARTMENT_ABBREVIATION: FlatTableKey<marker::Unselect> =
         Self::from_str("legal department abbreviation", "Abteilungskürzel");
     pub const LEGAL_DEPARTMENT_DESCRIPTION: FlatTableKey<marker::Unselect> =
@@ -66,6 +67,8 @@ impl FlatTableKey<marker::Unselect> {
         Self::from_str("legal title", "Rechtstitel");
     pub const MAINTENANCE_ASSOCIATION: FlatTableKey<marker::Unselect> =
         Self::from_str("maintenance association", "Unterhaltungsverband");
+    pub const MAP_EXCERPT: FlatTableKey<marker::Unselect> =
+        Self::from_str("top. map 1:25000", "Top. Karte 1:25.000");
     pub const MUNICIPAL_AREA: FlatTableKey<marker::Unselect> =
         Self::from_str("municipal area", "Gemeindegebiet");
     pub const NO: FlatTableKey<marker::Unselect> =
@@ -86,8 +89,6 @@ impl FlatTableKey<marker::Unselect> {
         Self::from_str("registering authority", "eingetragen durch");
     pub const REGULATION_CITATION: FlatTableKey<marker::Unselect> =
         Self::from_str("regulation citation", "Verordnungszitat");
-    pub const HOLDER: FlatTableKey<marker::Unselect> =
-        Self::from_str("holder", "Rechtsinhaber");
     pub const RIVER_BASIN: FlatTableKey<marker::Unselect> =
         Self::from_str("river basin", "Flussgebiet");
     const SORT_ORDER: [Self; 41] = [
@@ -135,8 +136,6 @@ impl FlatTableKey<marker::Unselect> {
     ];
     pub const STATUS: FlatTableKey<marker::Unselect> = Self::from_str("status", "Zustand");
     pub const SUBJECT: FlatTableKey<marker::Unselect> = Self::from_str("subject", "Betreff");
-    pub const MAP_EXCERPT: FlatTableKey<marker::Unselect> =
-        Self::from_str("top. map 1:25000", "Top. Karte 1:25.000");
     pub const USAGE_LOCATION_NAME: FlatTableKey<marker::Unselect> =
         Self::from_str("usage location name", "Nutzungsort/Bezeichnung");
     pub const USAGE_LOCATION_NO: FlatTableKey<marker::Unselect> =

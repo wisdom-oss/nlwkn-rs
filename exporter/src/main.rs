@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+
 use clap::Parser;
 
 const INIT_QUERY: &str = include_str!("../../deps/service/water-rights/resources/init.sql");
@@ -12,6 +13,6 @@ struct Args {
 }
 
 fn main() {
-    let Args {reports_json} = Args::parse();
+    let Args { reports_json } = Args::parse();
     println!("{:?}", reports_json);
 }

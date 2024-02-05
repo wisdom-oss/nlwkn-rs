@@ -80,11 +80,7 @@ where
         insert_into_row(row, FlatTableKey::STATUS, status.clone());
         insert_into_row(row, FlatTableKey::VALID_FROM, valid_from.clone());
         insert_into_row(row, FlatTableKey::LEGAL_TITLE, legal_title.clone());
-        insert_into_row(
-            row,
-            FlatTableKey::WATER_AUTHORITY,
-            water_authority.clone()
-        );
+        insert_into_row(row, FlatTableKey::WATER_AUTHORITY, water_authority.clone());
         insert_into_row(
             row,
             FlatTableKey::REGISTERING_AUTHORITY,
@@ -95,17 +91,13 @@ where
             FlatTableKey::GRANTING_AUTHORITY,
             granting_authority.clone()
         );
-        insert_into_row(row, FlatTableKey::INITIALLY_GRANTED, initially_granted.clone());
         insert_into_row(
             row,
-            FlatTableKey::LAST_CHANGE,
-            last_change.clone()
+            FlatTableKey::INITIALLY_GRANTED,
+            initially_granted.clone()
         );
-        insert_into_row(
-            row,
-            FlatTableKey::FILE_REFERENCE,
-            file_reference.clone()
-        );
+        insert_into_row(row, FlatTableKey::LAST_CHANGE, last_change.clone());
+        insert_into_row(row, FlatTableKey::FILE_REFERENCE, file_reference.clone());
         insert_into_row(
             row,
             FlatTableKey::EXTERNAL_IDENTIFIER,
@@ -223,10 +215,7 @@ where
         Some(OrFallback::Fallback(s)) => {
             insert_into_row(&mut row, FlatTableKey::LAND_RECORD, Some(s.clone()))
         }
-        Some(OrFallback::Expected(LandRecord {
-            district,
-            field
-        })) => insert_into_row(
+        Some(OrFallback::Expected(LandRecord { district, field })) => insert_into_row(
             &mut row,
             FlatTableKey::LAND_RECORD,
             Some(format!("{district}{field}"))
