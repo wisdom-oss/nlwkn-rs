@@ -1,18 +1,19 @@
 use std::cmp::Ordering;
 use std::collections::BTreeSet;
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+use std::{fs, io};
 
 use clap::Parser;
 use console::{Alignment, Color};
 use indicatif::ProgressBar;
 use nlwkn::cadenza::{CadenzaTable, CadenzaTableRow};
 use nlwkn::cli::{progress_message, ProgressBarGuard, PRINT_PADDING};
-use nlwkn::LegalDepartmentAbbreviation::B;
 use nlwkn::WaterRightNo;
 use reqwest::redirect::Policy;
+use thiserror::Error;
 
+use crate::req::FetchReportUrlError;
 use crate::tor::start_socks_proxy;
 
 // mod browse;
@@ -114,6 +115,17 @@ async fn main() {
                     continue 'wr_loop;
                 }
 
+                Err(FetchError::ReportUrl(FetchReportUrlError::NoResults)) => {
+                    progress_message(
+                        &progress,
+                        "Warning",
+                        Color::Yellow,
+                        format!("no results found for {water_right_no}")
+                    );
+                    progress.inc(1);
+                    continue 'wr_loop;
+                }
+
                 Err(err) => {
                     progress_message(
                         &progress,
@@ -154,7 +166,19 @@ async fn main() {
     }
 }
 
-async fn fetch(water_right_no: WaterRightNo, client: &reqwest::Client) -> anyhow::Result<()> {
+#[derive(Debug, Error)]
+enum FetchError {
+    #[error(transparent)]
+    ReportUrl(#[from] FetchReportUrlError),
+
+    #[error(transparent)]
+    Reqwest(#[from] reqwest::Error),
+
+    #[error(transparent)]
+    Write(#[from] io::Error)
+}
+
+async fn fetch(water_right_no: WaterRightNo, client: &reqwest::Client) -> Result<(), FetchError> {
     let report_link = req::fetch_report_url(water_right_no, client).await?;
     let pdf_bytes = client.get(&report_link).send().await?.bytes().await?;
     fs::write(
