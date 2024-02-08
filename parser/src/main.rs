@@ -5,7 +5,6 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::Arc;
-use parking_lot::Mutex;
 
 use clap::Parser;
 use console::{Color, Style};
@@ -19,6 +18,7 @@ use nlwkn::cadenza::CadenzaTable;
 use nlwkn::cli::{progress_message, PROGRESS_STYLE, PROGRESS_UPDATE_INTERVAL, SPINNER_STYLE};
 use nlwkn::util::{zero_is_none, OptionUpdate};
 use nlwkn::{WaterRight, WaterRightNo};
+use parking_lot::Mutex;
 use regex::Regex;
 use serde::{Serialize, Serializer};
 use thiserror::Error;
@@ -63,33 +63,33 @@ enum Warning {
     },
 
     #[error("could not extract water right number from {file_name:?}, will be ignored")]
-    CouldNotExtractWaterRightNo {
-        file_name: String
-    },
+    CouldNotExtractWaterRightNo { file_name: String },
 
     #[error("could not load {count} reports")]
-    CouldNotLoadReports {
-        count: usize
-    },
+    CouldNotLoadReports { count: usize },
 
-    #[error("could not find usage location no for report {water_right_no}, enrichment may be missing values")]
-    CouldNotFindUsageLocation {
-        water_right_no: WaterRightNo
-    },
+    #[error(
+        "could not find usage location no for report {water_right_no}, enrichment may be missing \
+         values"
+    )]
+    CouldNotFindUsageLocation { water_right_no: WaterRightNo },
 
-    #[error("in the report {water_right_no} the usage locations {missing_locations:?} are missing")]
+    #[error(
+        "in the report {water_right_no} the usage locations {missing_locations:?} are missing"
+    )]
     MissingLocations {
         water_right_no: WaterRightNo,
         missing_locations: Vec<u64>
     },
 
     #[error("a date in {water_right_no} has an invalid format")]
-    InvalidDateFormat {
-        water_right_no: WaterRightNo
-    }
+    InvalidDateFormat { water_right_no: WaterRightNo }
 }
 
-fn serialize_anyhow_error<S>(error: &anyhow::Error, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+fn serialize_anyhow_error<S>(error: &anyhow::Error, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer
+{
     error.to_string().serialize(serializer)
 }
 
@@ -190,13 +190,11 @@ async fn main() -> ExitCode {
 
             Err((water_right_no, error)) => {
                 parsing_issues.insert(water_right_no, error.to_string());
-                let warning = Warning::CouldNotParse {water_right_no, error};
-                progress_message(
-                    &PROGRESS,
-                    "Warning",
-                    Color::Yellow,
-                    &warning
-                );
+                let warning = Warning::CouldNotParse {
+                    water_right_no,
+                    error
+                };
+                progress_message(&PROGRESS, "Warning", Color::Yellow, &warning);
                 WARNINGS.lock().push(warning);
                 water_right_no
             }
@@ -267,12 +265,7 @@ fn load_reports(
             let warning = Warning::CouldNotExtractWaterRightNo {
                 file_name: file_name.to_string()
             };
-            progress_message(
-                &PROGRESS,
-                "Warning",
-                Color::Yellow,
-                &warning
-            );
+            progress_message(&PROGRESS, "Warning", Color::Yellow, &warning);
             WARNINGS.lock().push(warning);
             continue;
         };
@@ -297,13 +290,10 @@ fn load_reports(
         format!("{} reports correctly", reports.len())
     );
     if !broken_reports.is_empty() {
-        let warning = Warning::CouldNotLoadReports {count: broken_reports.len()};
-        progress_message(
-            &PROGRESS,
-            "Warning",
-            Color::Yellow,
-            &warning
-        );
+        let warning = Warning::CouldNotLoadReports {
+            count: broken_reports.len()
+        };
+        progress_message(&PROGRESS, "Warning", Color::Yellow, &warning);
         WARNINGS.lock().push(warning);
     }
 
@@ -369,13 +359,8 @@ fn parsing_task(
                     usage_location.usage_location_no
                 }
                 (None, None) => {
-                    let warning = Warning::CouldNotFindUsageLocation {water_right_no};
-                    progress_message(
-                        &PROGRESS,
-                        "Warning",
-                        Color::Yellow,
-                        &warning
-                    );
+                    let warning = Warning::CouldNotFindUsageLocation { water_right_no };
+                    progress_message(&PROGRESS, "Warning", Color::Yellow, &warning);
                     WARNINGS.lock().push(warning);
                     continue;
                 }
@@ -407,13 +392,11 @@ fn parsing_task(
 
         if !relevant_cadenza_rows.is_empty() {
             let missing_locations = relevant_cadenza_rows.keys().copied().collect::<Vec<_>>();
-            let warning = Warning::MissingLocations {water_right_no, missing_locations};
-            progress_message(
-                &PROGRESS,
-                "Warning",
-                Color::Yellow,
-                &warning
-            );
+            let warning = Warning::MissingLocations {
+                water_right_no,
+                missing_locations
+            };
+            progress_message(&PROGRESS, "Warning", Color::Yellow, &warning);
             WARNINGS.lock().push(warning);
         }
 
@@ -457,13 +440,8 @@ fn parsing_task(
             let month = split.next();
             let year = split.next();
             if split.next().is_some() {
-                let warning = Warning::InvalidDateFormat {water_right_no};
-                progress_message(
-                    &PROGRESS,
-                    "Warning",
-                    Color::Yellow,
-                    &warning
-                );
+                let warning = Warning::InvalidDateFormat { water_right_no };
+                progress_message(&PROGRESS, "Warning", Color::Yellow, &warning);
                 WARNINGS.lock().push(warning);
                 continue;
             }
