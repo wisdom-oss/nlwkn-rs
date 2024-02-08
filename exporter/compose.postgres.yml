@@ -1,0 +1,17 @@
+version: "3.8"
+
+services:
+  postgis:
+    container_name: nlwkn-postgres
+    image: postgis/postgis:latest
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: wisdom
+    ports:
+      - "5432:5432"
+    volumes:
+      - nlwkn_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  nlwkn_postgres_data:
