@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 
-const INIT_QUERY: &str = include_str!("../../deps/service/water-rights/resources/init.sql");
+const INIT_QUERY: &str = include_str!("../../target/resources/init.sql");
 
 /// NLWKN Water Right DB Exporter
 #[derive(Debug, Parser)]

@@ -24,6 +24,10 @@ path = "adapter/src/main.rs"
 name = "exporter"
 path = "exporter/src/main.rs"
 
+[[package.metadata.resources]]
+url = "https://raw.githubusercontent.com/wisdom-oss/service-water-rights/feature/updated-dataschema/resources/init.sql"
+path = "init.sql"
+
 [dependencies]
 # async runtime
 tokio = { version = "1", features = ["full"] }
@@ -102,3 +106,7 @@ features = [
 
 [dependencies.tor-config]
 version = "0.10"
+
+[build-dependencies]
+reqwest = { version = "0.11", features = ["blocking"] }
+static-toml = "1"
