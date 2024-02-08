@@ -5,3 +5,6 @@ retries = 10
 
 [data]
 reports = "data/reports"
+
+[postgres]
+database = "wisdom"
