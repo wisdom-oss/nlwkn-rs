@@ -2142,6 +2142,7 @@ dependencies = [
  "itertools 0.12.1",
  "lazy_static",
  "lopdf",
+ "parking_lot",
  "portpicker",
  "postgres",
  "postgres-types",

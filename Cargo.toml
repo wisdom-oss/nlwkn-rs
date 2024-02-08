@@ -57,6 +57,7 @@ lazy_static = "1"
 regex = "1"
 itertools = "0.12"
 rayon = "1.8"
+parking_lot = "0.12"
 
 # error handling
 anyhow = "1"
