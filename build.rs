@@ -24,12 +24,19 @@ fn main() {
         .parent()
         .expect("profile");
     let mut resource_dir = target_dir.to_path_buf();
+    // try to construct a relative path, only works if target dir is part of project dir
+    if let Ok(current_dir) = env::current_dir() {
+        if let Ok(relative) = resource_dir.strip_prefix(current_dir) {
+            resource_dir = relative.to_path_buf();
+        }
+    }
     resource_dir.push("resources");
     fs::create_dir_all(&resource_dir).unwrap();
 
     let client = reqwest::blocking::Client::new();
     for resource in CARGO_TOML.package.metadata.resources.iter() {
         let out_path = resource_dir.join(resource.path);
+        println!("cargo:rerun-if-changed={}", out_path.to_string_lossy());
         if let Ok(meta) = fs::metadata(&out_path) {
             if meta.is_file() {
                 continue;
@@ -40,7 +47,5 @@ fn main() {
         let text = res.text().unwrap();
 
         fs::write(&out_path, text).unwrap();
-        let out_path = out_path.to_string_lossy();
-        println!("cargo:rerun-if-changed={}", out_path);
     }
 }
