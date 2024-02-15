@@ -24,7 +24,8 @@ fn main() {
         .parent()
         .expect("profile");
     let mut resource_dir = target_dir.to_path_buf();
-    // try to construct a relative path, only works if target dir is part of project dir
+    // try to construct a relative path, only works if target dir is part of project
+    // dir
     if let Ok(current_dir) = env::current_dir() {
         if let Ok(relative) = resource_dir.strip_prefix(current_dir) {
             resource_dir = relative.to_path_buf();
