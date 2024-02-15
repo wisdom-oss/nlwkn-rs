@@ -1,10 +1,13 @@
-use std::env;
 use std::path::PathBuf;
 use std::str::FromStr;
+use std::{env, fs};
 
 use clap::Parser;
+use nlwkn::WaterRight;
 use postgres::{Client as PostgresClient, NoTls};
 use static_toml::static_toml;
+
+mod postgres_copy;
 
 const INIT_QUERY: &str = include_str!("../../target/resources/init.sql");
 
