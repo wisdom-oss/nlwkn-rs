@@ -7,6 +7,7 @@ use nlwkn::WaterRight;
 use postgres::{Client as PostgresClient, NoTls};
 use static_toml::static_toml;
 
+mod export;
 mod postgres_copy;
 
 const INIT_QUERY: &str = include_str!("../../target/resources/init.sql");
@@ -53,6 +54,10 @@ fn main() -> anyhow::Result<()> {
 
     let mut pg_client = setup_pg_client(pg_args)?;
     pg_client.batch_execute(INIT_QUERY)?;
+
+    let water_rights = fs::read_to_string(reports_json)?;
+    let water_rights: Vec<WaterRight> = serde_json::from_str(&water_rights)?;
+    export::water_rights_to_pg(&mut pg_client, &water_rights)?;
 
     Ok(())
 }
