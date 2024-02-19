@@ -1,28 +1,44 @@
 use std::io;
 use std::io::Write;
 
-use nlwkn::helper_types::{Duration, Quantity, Rate, SingleOrPair};
-use nlwkn::{DamTargets, LandRecord, LegalDepartmentAbbreviation};
+use nlwkn::helper_types::{Duration, OrFallback, Quantity, Rate, SingleOrPair};
+use nlwkn::{DamTargets, LandRecord, LegalDepartmentAbbreviation, PHValues};
+
+use crate::export::InjectionLimit;
 
 pub trait PostgresCopy {
     fn copy_to(&self, writer: &mut impl io::Write) -> io::Result<()>;
 }
 
-pub fn iter_copy_to<'t, T, I>(iter: I, writer: &mut impl io::Write) -> io::Result<()>
+pub fn iter_copy_to<T, I>(iter: I, writer: &mut impl io::Write) -> io::Result<()>
 where
-    I: Iterator<Item = &'t T>,
-    T: PostgresCopy + 't
+    I: Iterator<Item = T>,
+    T: PostgresCopy
 {
-    writer.write(b"{")?;
     let mut iter = iter.peekable();
+    if iter.peek().is_none() {
+        return write!(writer, r"\N");
+    }
+
+    writer.write(b"{")?;
     while let Some(it) = iter.next() {
+        writer.write(b"\"")?;
         it.copy_to(writer)?;
+        writer.write(b"\"")?;
         if iter.peek().is_some() {
-            writer.write(b", ")?;
+            writer.write(b",")?;
         }
     }
     writer.write(b"}")?;
     Ok(())
+}
+
+pub fn utm_point_copy_to(
+    easting: u64,
+    northing: u64,
+    writer: &mut impl io::Write
+) -> io::Result<()> {
+    write!(writer, "POINT({easting} {northing})")
 }
 
 macro_rules! impl_postgres_copy {
@@ -38,31 +54,59 @@ macro_rules! impl_postgres_copy {
 impl_postgres_copy!(usize, u8, u16, u32, u64, u128);
 impl_postgres_copy!(isize, i8, i16, i32, i64, i128);
 impl_postgres_copy!(f32, f64);
+impl_postgres_copy!(bool);
 
 impl PostgresCopy for str {
     fn copy_to(&self, writer: &mut impl io::Write) -> io::Result<()> {
-        write!(writer, "{}", self.escape_debug())
+        let escape_brackets = self.contains('(') || self.contains(')');
+        // if escape_brackets {
+        //     writer.write(br#"\""#)?;
+        // }
+        for c in self.chars() {
+            match c {
+                '\n' => write!(writer, r"\n")?,
+                '\t' => write!(writer, r"\t")?,
+                _ => write!(writer, "{}", c)?
+            }
+        }
+        // if escape_brackets {
+        //     writer.write(br#"\""#)?;
+        // }
+        Ok(())
     }
 }
 
-impl PostgresCopy for Option<String> {
+impl PostgresCopy for String {
     fn copy_to(&self, writer: &mut impl io::Write) -> io::Result<()> {
-        match self {
-            None => write!(writer, r"\N"),
-            Some(s) => s.as_str().copy_to(writer)
-        }
+        self.as_str().copy_to(writer)
     }
 }
 
 /// Represents the `water_rights.numeric_keyed_value` in the Postgres DB.
 impl PostgresCopy for SingleOrPair<u64, String> {
     fn copy_to(&self, writer: &mut impl io::Write) -> io::Result<()> {
-        write!(writer, "(")?;
-        match self {
-            SingleOrPair::Single(key) => write!(writer, "key := {key}")?,
-            SingleOrPair::Pair(key, name) => write!(writer, "key := {key}, name := {name:?}")?
-        }
-        write!(writer, ")::water_rights.rate")?;
+        let (key, name) = match self {
+            SingleOrPair::Single(key) => (key, None),
+            SingleOrPair::Pair(key, name) => (key, Some(name))
+        };
+        writer.write(b"(")?;
+        key.copy_to(writer)?;
+        writer.write(br#",\""#)?;
+        name.copy_to(writer)?;
+        writer.write(br#"\")"#)?;
+        Ok(())
+    }
+}
+
+/// Represents the `water_rights.numeric_keyed_value` in the Postgres DB.
+impl PostgresCopy for (u64, String) {
+    fn copy_to(&self, writer: &mut impl io::Write) -> io::Result<()> {
+        let (key, name) = self;
+        writer.write(b"(")?;
+        key.copy_to(writer)?;
+        writer.write(br#",\""#)?;
+        name.copy_to(writer)?;
+        writer.write(br#"\")"#)?;
         Ok(())
     }
 }
@@ -70,19 +114,25 @@ impl PostgresCopy for SingleOrPair<u64, String> {
 impl PostgresCopy for Quantity {
     fn copy_to(&self, writer: &mut impl io::Write) -> io::Result<()> {
         let Quantity { value, unit } = self;
-        write!(
-            writer,
-            "(value := {value}, unit := {unit})::water_rights.quantity"
-        )
+        writer.write(b"(")?;
+        value.copy_to(writer)?;
+        writer.write(b",")?;
+        unit.copy_to(writer)?;
+        writer.write(b")")?;
+        Ok(())
     }
 }
 
 impl PostgresCopy for Rate<f64> {
     fn copy_to(&self, writer: &mut impl io::Write) -> io::Result<()> {
         let Rate { value, unit, per } = self;
-        write!(writer, "(value := {value}, unit := {unit}, per := ")?;
+        writer.write(b"(")?;
+        value.copy_to(writer)?;
+        writer.write(b",")?;
+        unit.copy_to(writer)?;
+        writer.write(b",")?;
         per.copy_to(writer)?;
-        write!(writer, ")::water_rights.rate")?;
+        writer.write(b")")?;
         Ok(())
     }
 }
@@ -109,18 +159,17 @@ impl PostgresCopy for DamTargets {
             max,
             ..
         } = self;
-        let fields = [(r#""default""#, default), ("steady", steady), ("max", max)];
-
-        write!(writer, "(")?;
-        let mut fields = fields.iter().filter_map(|(f, q)| q.as_ref().map(|q| (f, q))).peekable();
-        while let Some((field, quantity)) = fields.next() {
-            write!(writer, "{field} := ")?;
-            quantity.copy_to(writer)?;
-            if fields.peek().is_some() {
-                write!(writer, ", ")?;
-            }
+        if let (None, None, None) = (default, steady, max) {
+            return write!(writer, r"\N");
         }
-        write!(writer, ")::water_rights.dam_target")?;
+
+        writer.write(b"(")?;
+        default.copy_to(writer)?;
+        writer.write(b",")?;
+        steady.copy_to(writer)?;
+        writer.write(b",")?;
+        max.copy_to(writer)?;
+        writer.write(b")")?;
         Ok(())
     }
 }
@@ -128,20 +177,23 @@ impl PostgresCopy for DamTargets {
 impl PostgresCopy for LandRecord {
     fn copy_to(&self, writer: &mut impl io::Write) -> io::Result<()> {
         let LandRecord { district, field } = self;
-        write!(
-            writer,
-            "(district := {district}, field := {field})::water_rights.land_record"
-        )
+        writer.write(b"(")?;
+        district.copy_to(writer)?;
+        writer.write(b",")?;
+        field.copy_to(writer)?;
+        writer.write(b")")?;
+        Ok(())
     }
 }
 
 /// Represents the `water_rights.injection_limit` in the Postgres DB.
 impl PostgresCopy for (String, Quantity) {
     fn copy_to(&self, writer: &mut impl io::Write) -> io::Result<()> {
-        let (substance, quantity) = self;
-        write!(writer, "(substance := {substance}, quantity := ")?;
-        quantity.copy_to(writer)?;
-        write!(writer, ")::water_rights.injection_limit")?;
+        writer.write(b"(")?;
+        self.0.copy_to(writer)?;
+        writer.write(b",")?;
+        self.1.copy_to(writer)?;
+        writer.write(b")")?;
         Ok(())
     }
 }
@@ -158,6 +210,46 @@ impl PostgresCopy for LegalDepartmentAbbreviation {
             LegalDepartmentAbbreviation::K => write!(writer, "K"),
             LegalDepartmentAbbreviation::L => write!(writer, "L")
         }
+    }
+}
+
+impl PostgresCopy for PHValues {
+    fn copy_to(&self, writer: &mut impl Write) -> io::Result<()> {
+        let PHValues { min, max } = self;
+        match min {
+            Some(min) => write!(writer, "[{min}")?,
+            None => write!(writer, "(-infinity")?
+        };
+        write!(writer, ",")?;
+        match max {
+            Some(max) => write!(writer, "{max}]")?,
+            None => write!(writer, "infinity)")?
+        };
+        Ok(())
+    }
+}
+
+impl<'il> PostgresCopy for InjectionLimit<'il> {
+    fn copy_to(&self, writer: &mut impl Write) -> io::Result<()> {
+        let InjectionLimit {
+            substance,
+            quantity
+        } = self;
+        writer.write(br#"(\\""#)?;
+        substance.copy_to(writer)?;
+        writer.write(br#"\\",\\""#)?;
+        quantity.copy_to(writer)?;
+        writer.write(br#"\\")"#)?;
+        Ok(())
+    }
+}
+
+impl<T> PostgresCopy for &T
+where
+    T: PostgresCopy
+{
+    fn copy_to(&self, writer: &mut impl Write) -> io::Result<()> {
+        (*self).copy_to(writer)
     }
 }
 
@@ -188,6 +280,32 @@ where
             None => write!(writer, r"\N"),
             Some(v) => v.copy_to(writer)
         }
+    }
+}
+
+impl<T> PostgresCopy for OrFallback<T>
+where
+    T: PostgresCopy
+{
+    fn copy_to(&self, writer: &mut impl Write) -> io::Result<()> {
+        match self {
+            OrFallback::Expected(v) => v.copy_to(writer),
+            OrFallback::Fallback(_) => writer.write(br"\N").map(|_| ())
+        }
+    }
+}
+
+impl<T> PostgresCopy for (T, T)
+where
+    T: PostgresCopy
+{
+    fn copy_to(&self, writer: &mut impl Write) -> io::Result<()> {
+        writer.write(b"{")?;
+        self.0.copy_to(writer)?;
+        writer.write(b",")?;
+        self.1.copy_to(writer)?;
+        writer.write(b"}")?;
+        Ok(())
     }
 }
 
