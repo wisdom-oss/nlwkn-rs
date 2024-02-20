@@ -11,12 +11,19 @@ use nlwkn::helper_types::Quantity;
 use nlwkn::{LegalDepartmentAbbreviation, UsageLocation, WaterRight, WaterRightNo};
 use postgres::{Client as PostgresClient, Transaction};
 
-use crate::postgres_copy::{iter_copy_to, utm_point_copy_to, IsoDate, PostgresCopy};
+use crate::postgres_copy::{IterPostgresCopy, PostgresCopy};
 
 pub struct InjectionLimit<'il> {
     pub substance: &'il String,
     pub quantity: &'il Quantity
 }
+
+pub struct UtmPoint {
+    pub easting: u64,
+    pub northing: u64
+}
+
+pub struct IsoDate<'s>(pub &'s str);
 
 struct LogThrough<T> {
     writer: T,
@@ -90,28 +97,28 @@ fn copy_water_rights(
 
     macro_rules! iso_date {
         ($iso_date_opt:expr) => {
-            $iso_date_opt.as_ref().map(|s| IsoDate(s)).copy_to(&mut writer)
+            $iso_date_opt.as_ref().map(|s| IsoDate(s)).copy_to(&mut writer, 0)
         };
     }
 
     for water_right in water_rights.iter() {
-        water_right.no.copy_to(&mut writer)?;
+        water_right.no.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        water_right.external_identifier.copy_to(&mut writer)?;
+        water_right.external_identifier.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        water_right.file_reference.copy_to(&mut writer)?;
+        water_right.file_reference.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        iter_copy_to(water_right.legal_departments.keys(), &mut writer)?;
+        water_right.legal_departments.keys().copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        water_right.holder.copy_to(&mut writer)?;
+        water_right.holder.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        water_right.address.copy_to(&mut writer)?;
+        water_right.address.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        water_right.subject.copy_to(&mut writer)?;
+        water_right.subject.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        water_right.legal_title.copy_to(&mut writer)?;
+        water_right.legal_title.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        water_right.status.copy_to(&mut writer)?;
+        water_right.status.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
         iso_date!(water_right.valid_from)?;
         writer.write(b"\t")?;
@@ -121,13 +128,13 @@ fn copy_water_rights(
         writer.write(b"\t")?;
         iso_date!(water_right.last_change)?;
         writer.write(b"\t")?;
-        water_right.water_authority.copy_to(&mut writer)?;
+        water_right.water_authority.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        water_right.registering_authority.copy_to(&mut writer)?;
+        water_right.registering_authority.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        water_right.granting_authority.copy_to(&mut writer)?;
+        water_right.granting_authority.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        water_right.annotation.copy_to(&mut writer)?;
+        water_right.annotation.copy_to(&mut writer, 0)?;
         writer.write(b"\n")?;
     }
 
@@ -152,83 +159,85 @@ fn copy_usage_locations<'l>(
     )?;
     let mut writer = LogThrough::new(writer);
 
-    for (no, lda, location) in usage_location.take(500) {
+    for (no, lda, location) in usage_location.take(1) {
         writer.write(b"@DEFAULT")?;
         writer.write(b"\t")?;
-        location.no.copy_to(&mut writer)?;
+        location.no.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        location.serial.copy_to(&mut writer)?;
+        location.serial.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        no.copy_to(&mut writer)?;
+        no.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        lda.copy_to(&mut writer)?;
+        lda.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        location.active.copy_to(&mut writer)?;
+        location.active.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        location.real.copy_to(&mut writer)?;
+        location.real.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        location.name.copy_to(&mut writer)?;
+        location.name.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        location.legal_purpose.copy_to(&mut writer)?;
+        location.legal_purpose.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        location.map_excerpt.copy_to(&mut writer)?;
+        location.map_excerpt.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        location.municipal_area.copy_to(&mut writer)?;
+        location.municipal_area.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        location.county.copy_to(&mut writer)?;
+        location.county.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        location.land_record.copy_to(&mut writer)?;
+        location.land_record.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        location.plot.copy_to(&mut writer)?;
+        location.plot.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        location.maintenance_association.copy_to(&mut writer)?;
+        location.maintenance_association.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        location.eu_survey_area.copy_to(&mut writer)?;
+        location.eu_survey_area.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        location.catchment_area_code.copy_to(&mut writer)?;
+        location.catchment_area_code.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        location.regulation_citation.copy_to(&mut writer)?;
+        location.regulation_citation.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        iter_copy_to((&location.withdrawal_rates).into_iter(), &mut writer)?;
+        location.withdrawal_rates.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        iter_copy_to((&location.pumping_rates).into_iter(), &mut writer)?;
+        location.pumping_rates.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        iter_copy_to((&location.injection_rates).into_iter(), &mut writer)?;
+        location.injection_rates.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        iter_copy_to((&location.waste_water_flow_volume).into_iter(), &mut writer)?;
+        location.waste_water_flow_volume.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        location.river_basin.copy_to(&mut writer)?;
+        location.river_basin.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        location.groundwater_body.copy_to(&mut writer)?;
+        location.groundwater_body.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        location.water_body.copy_to(&mut writer)?;
+        location.water_body.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        location.flood_area.copy_to(&mut writer)?;
+        location.flood_area.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        location.water_protection_area.copy_to(&mut writer)?;
+        location.water_protection_area.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        location.dam_target_levels.copy_to(&mut writer)?;
+        location.dam_target_levels.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        iter_copy_to((&location.fluid_discharge).into_iter(), &mut writer)?;
+        location.fluid_discharge.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        iter_copy_to((&location.rain_supplement).into_iter(), &mut writer)?;
+        location.rain_supplement.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        location.irrigation_area.copy_to(&mut writer)?;
+        location.irrigation_area.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        location.ph_values.copy_to(&mut writer)?;
+        location.ph_values.copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
-        iter_copy_to(
-            location.injection_limits.iter().map(|(substance, quantity)| InjectionLimit {
+        location
+            .injection_limits
+            .iter()
+            .map(|(substance, quantity)| InjectionLimit {
                 substance,
                 quantity
-            }),
-            &mut writer
-        )?;
+            })
+            .copy_to(&mut writer, 0)?;
         writer.write(b"\t")?;
         match (location.utm_easting, location.utm_northing) {
-            (Some(easting), Some(northing)) => utm_point_copy_to(easting, northing, &mut writer)?,
-            _ => writer.write(br"\N").map(|_| ())?
-        };
+            (Some(easting), Some(northing)) => Some(UtmPoint { easting, northing }),
+            _ => None
+        }
+        .copy_to(&mut writer, 0)?;
         writer.write(b"\n")?;
     }
 
