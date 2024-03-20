@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
 
-use calamine::{RangeDeserializerBuilder, Reader, Xlsx};
+use calamine::{DataType, RangeDeserializerBuilder, Reader, Xlsx};
 use serde::{Deserialize, Deserializer};
 
 use crate::util::StringOption;
@@ -168,7 +168,7 @@ fn deserialize_date<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
 where
     D: Deserializer<'de>
 {
-    let float: calamine::DataType = calamine::DataType::deserialize(deserializer)?;
+    let float: calamine::Data = calamine::Data::deserialize(deserializer)?;
     Ok(Some(
         float.as_date().ok_or(serde::de::Error::custom("cannot convert to date"))?.to_string()
     ))

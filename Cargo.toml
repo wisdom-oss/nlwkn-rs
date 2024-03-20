@@ -34,7 +34,7 @@ tokio = { version = "1", features = ["full"] }
 futures = "0.3"
 
 # reading xlsx
-calamine = { version = "0.23", features = ["dates"] }
+calamine = { version = "0.24", features = ["dates"] }
 
 # reading pdf
 lopdf = "0.32"
@@ -74,7 +74,7 @@ features = ["rustls-tls", "socks"]
 
 # tor connection
 [dependencies.arti]
-version = "1"
+version = "1.2"
 default-features = false
 features = [
     "tokio",
@@ -85,7 +85,7 @@ features = [
 ]
 
 [dependencies.arti-client]
-version = "0.13"
+version = "0.14"
 default-features = false
 features = [
     "tokio",
@@ -97,7 +97,7 @@ features = [
 ]
 
 [dependencies.tor-rtcompat]
-version = "0.9"
+version = "0.10"
 default-features = false
 features = [
     "tokio",
@@ -105,7 +105,7 @@ features = [
 ]
 
 [dependencies.tor-config]
-version = "0.10"
+version = "0.11"
 
 [build-dependencies]
 reqwest = { version = "0.11", features = ["blocking"] }
