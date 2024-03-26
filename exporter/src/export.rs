@@ -3,15 +3,13 @@
 //! 2. use [`Transaction::copy_in`] for [batch execution via STDIN](https://www.postgresql.org/docs/current/sql-copy.html)
 //! 3. use [`CopyInWriter`] to write rows
 
-use std::fs::File;
-use std::io;
-use std::io::{stdout, Stdout, Write};
+use std::io::Write;
 
 use nlwkn::helper_types::Quantity;
 use nlwkn::{LegalDepartmentAbbreviation, UsageLocation, WaterRight, WaterRightNo};
 use postgres::{Client as PostgresClient, Transaction};
 
-use crate::postgres_copy::{IterPostgresCopy, PostgresCopy};
+use crate::postgres_copy::{IterPostgresCopy, PostgresCopy, PostgresCopyContext};
 
 pub struct InjectionLimit<'il> {
     pub substance: &'il String,
@@ -25,45 +23,14 @@ pub struct UtmPoint {
 
 pub struct IsoDate<'s>(pub &'s str);
 
-struct LogThrough<T> {
-    writer: T,
-    file: File
-}
-
-impl<T> LogThrough<T> {
-    fn new(writer: T) -> Self {
-        Self {
-            writer,
-            file: File::create("data/pg-export.log.tsv").unwrap()
-        }
-    }
-
-    fn into_writer(self) -> T {
-        self.writer
-    }
-}
-
-impl<T> io::Write for LogThrough<T>
-where
-    T: io::Write
-{
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.file.write(buf)?;
-        self.writer.write(buf)
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        self.file.flush()?;
-        self.writer.flush()
-    }
-}
-
 pub fn water_rights_to_pg(
     pg_client: &mut PostgresClient,
     water_rights: &[WaterRight]
 ) -> anyhow::Result<()> {
     let mut transaction = pg_client.transaction()?;
+    println!("starting to copy into db");
     copy_water_rights(&mut transaction, water_rights)?;
+    println!("water rights table done");
     copy_usage_locations(
         &mut transaction,
         water_rights
@@ -76,14 +43,30 @@ pub fn water_rights_to_pg(
             })
             .flatten()
     )?;
+    println!("usage locations table done");
     transaction.commit()?;
     Ok(())
+}
+
+macro_rules! interleave_tabs {
+    // Base case: when there's only one expression left, execute it without adding a tab after
+    ($writer:expr; $expr:expr) => {
+        $expr // Execute the last expression
+    };
+
+    // Match any expression followed by a comma, and then recursively call for the rest
+    ($writer:expr; $expr:expr; $($rest:expr);+ $(;)?) => {
+        $expr; // Execute the first expression
+        $writer.write(b"\t")?; // Write a tab.
+        interleave_tabs!($writer; $($rest);*); // Recursively process the remaining expressions
+    };
 }
 
 fn copy_water_rights(
     transaction: &mut Transaction,
     water_rights: &[WaterRight]
 ) -> anyhow::Result<()> {
+    #[cfg_attr(feature = "file-log", allow(unused_mut))]
     let mut writer = transaction.copy_in(
         "
             COPY water_rights.rights
@@ -94,50 +77,47 @@ fn copy_water_rights(
             )
         "
     )?;
+    #[cfg(feature = "file-log")]
+    let mut writer = log_through::LogThrough::new(writer, "rights.export").prepare_rights()?;
 
     macro_rules! iso_date {
         ($iso_date_opt:expr) => {
-            $iso_date_opt.as_ref().map(|s| IsoDate(s)).copy_to(&mut writer, 0)
+            $iso_date_opt
+                .as_ref()
+                .map(|s| IsoDate(s))
+                .copy_to(&mut writer, PostgresCopyContext::default())
         };
     }
 
+    // PostgresCopyContext implements Copy,
+    // so this will be a new context for each call
+    let ctx = PostgresCopyContext::default();
     for water_right in water_rights.iter() {
-        water_right.no.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        water_right.external_identifier.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        water_right.file_reference.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        water_right.legal_departments.keys().copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        water_right.holder.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        water_right.address.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        water_right.subject.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        water_right.legal_title.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        water_right.status.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        iso_date!(water_right.valid_from)?;
-        writer.write(b"\t")?;
-        iso_date!(water_right.valid_until)?;
-        writer.write(b"\t")?;
-        iso_date!(water_right.initially_granted)?;
-        writer.write(b"\t")?;
-        iso_date!(water_right.last_change)?;
-        writer.write(b"\t")?;
-        water_right.water_authority.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        water_right.registering_authority.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        water_right.granting_authority.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        water_right.annotation.copy_to(&mut writer, 0)?;
-        writer.write(b"\n")?;
+        interleave_tabs! {
+            writer;
+            water_right.no.copy_to(&mut writer, ctx)?;
+            water_right.external_identifier.copy_to(&mut writer, ctx)?;
+            water_right.file_reference.copy_to(&mut writer, ctx)?;
+            water_right.legal_departments.keys().copy_to(&mut writer, ctx)?;
+            water_right.holder.copy_to(&mut writer, ctx)?;
+            water_right.address.copy_to(&mut writer, ctx)?;
+            water_right.subject.copy_to(&mut writer, ctx)?;
+            water_right.legal_title.copy_to(&mut writer, ctx)?;
+            water_right.status.copy_to(&mut writer, ctx)?;
+            iso_date!(water_right.valid_from)?;
+            iso_date!(water_right.valid_until)?;
+            iso_date!(water_right.initially_granted)?;
+            iso_date!(water_right.last_change)?;
+            water_right.water_authority.copy_to(&mut writer, ctx)?;
+            water_right.registering_authority.copy_to(&mut writer, ctx)?;
+            water_right.granting_authority.copy_to(&mut writer, ctx)?;
+            water_right.annotation.copy_to(&mut writer, ctx)?;
+        }
+        write!(writer, "\n")?;
     }
 
+    #[cfg(feature = "file-log")]
+    let writer = writer.into_writer()?;
     writer.finish()?;
     Ok(())
 }
@@ -146,6 +126,7 @@ fn copy_usage_locations<'l>(
     transaction: &mut Transaction,
     usage_location: impl Iterator<Item = (WaterRightNo, LegalDepartmentAbbreviation, &'l UsageLocation)>
 ) -> anyhow::Result<()> {
+    #[cfg_attr(feature = "file-log", allow(unused_mut))]
     let mut writer = transaction.copy_in(
         "
             COPY water_rights.usage_locations
@@ -157,92 +138,181 @@ fn copy_usage_locations<'l>(
             )
         "
     )?;
-    let mut writer = LogThrough::new(writer);
+    #[cfg(feature = "file-log")]
+    let mut writer =
+        log_through::LogThrough::new(writer, "usage_locations.export").prepare_usage_locations()?;
 
-    for (no, lda, location) in usage_location.take(1) {
-        writer.write(b"@DEFAULT")?;
-        writer.write(b"\t")?;
-        location.no.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        location.serial.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        no.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        lda.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        location.active.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        location.real.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        location.name.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        location.legal_purpose.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        location.map_excerpt.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        location.municipal_area.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        location.county.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        location.land_record.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        location.plot.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        location.maintenance_association.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        location.eu_survey_area.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        location.catchment_area_code.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        location.regulation_citation.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        location.withdrawal_rates.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        location.pumping_rates.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        location.injection_rates.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        location.waste_water_flow_volume.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        location.river_basin.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        location.groundwater_body.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        location.water_body.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        location.flood_area.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        location.water_protection_area.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        location.dam_target_levels.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        location.fluid_discharge.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        location.rain_supplement.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        location.irrigation_area.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        location.ph_values.copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        location
-            .injection_limits
-            .iter()
-            .map(|(substance, quantity)| InjectionLimit {
-                substance,
-                quantity
-            })
-            .copy_to(&mut writer, 0)?;
-        writer.write(b"\t")?;
-        match (location.utm_easting, location.utm_northing) {
-            (Some(easting), Some(northing)) => Some(UtmPoint { easting, northing }),
-            _ => None
+    let ctx = PostgresCopyContext::default();
+    for (no, lda, location) in usage_location {
+        interleave_tabs! {
+            writer;
+            writer.write(b"@DEFAULT")?;
+            location.no.copy_to(&mut writer, ctx)?;
+            location.serial.copy_to(&mut writer, ctx)?;
+            no.copy_to(&mut writer, ctx)?;
+            lda.copy_to(&mut writer, ctx)?;
+            location.active.copy_to(&mut writer, ctx)?;
+            location.real.copy_to(&mut writer, ctx)?;
+            location.name.copy_to(&mut writer, ctx)?;
+            location.legal_purpose.copy_to(&mut writer, ctx)?;
+            location.map_excerpt.copy_to(&mut writer, ctx)?;
+            location.municipal_area.copy_to(&mut writer, ctx)?;
+            location.county.copy_to(&mut writer, ctx)?;
+            location.land_record.copy_to(&mut writer, ctx)?;
+            location.plot.copy_to(&mut writer, ctx)?;
+            location.maintenance_association.copy_to(&mut writer, ctx)?;
+            location.eu_survey_area.copy_to(&mut writer, ctx)?;
+            location.catchment_area_code.copy_to(&mut writer, ctx)?;
+            location.regulation_citation.copy_to(&mut writer, ctx)?;
+            location.withdrawal_rates.copy_to(&mut writer, ctx)?;
+            location.pumping_rates.copy_to(&mut writer, ctx)?;
+            location.injection_rates.copy_to(&mut writer, ctx)?;
+            location.waste_water_flow_volume.copy_to(&mut writer, ctx)?;
+            location.river_basin.copy_to(&mut writer, ctx)?;
+            location.groundwater_body.copy_to(&mut writer, ctx)?;
+            location.water_body.copy_to(&mut writer, ctx)?;
+            location.flood_area.copy_to(&mut writer, ctx)?;
+            location.water_protection_area.copy_to(&mut writer, ctx)?;
+            location.dam_target_levels.copy_to(&mut writer, ctx)?;
+            location.fluid_discharge.copy_to(&mut writer, ctx)?;
+            location.rain_supplement.copy_to(&mut writer, ctx)?;
+            location.irrigation_area.copy_to(&mut writer, ctx)?;
+            location.ph_values.copy_to(&mut writer, ctx)?;
+            location
+                .injection_limits
+                .iter()
+                .map(|(substance, quantity)| InjectionLimit {
+                    substance,
+                    quantity
+                })
+                .copy_to(&mut writer, ctx)?;
+            match (location.utm_easting, location.utm_northing) {
+                (Some(easting), Some(northing)) => Some(UtmPoint { easting, northing }),
+                _ => None
+            }
+            .copy_to(&mut writer, ctx)?;
         }
-        .copy_to(&mut writer, 0)?;
-        writer.write(b"\n")?;
+        write!(writer, "\n")?;
     }
 
-    writer.flush()?;
-    let writer = writer.into_writer();
+    #[cfg(feature = "file-log")]
+    let writer = writer.into_writer()?;
     writer.finish()?;
     Ok(())
+}
+
+#[cfg(feature = "file-log")]
+mod log_through {
+    use std::fs::File;
+    use std::io;
+    use std::io::Write;
+
+    pub struct LogThrough<T> {
+        writer: T,
+        file: File
+    }
+
+    impl<T> LogThrough<T>
+    where
+        T: io::Write
+    {
+        pub fn new(writer: T, filename: &str) -> Self {
+            Self {
+                writer,
+                file: File::create(format!("data/{filename}.log.tsv")).unwrap()
+            }
+        }
+
+        pub fn into_writer(mut self) -> io::Result<T> {
+            self.flush()?;
+            Ok(self.writer)
+        }
+
+        pub fn log(&mut self, buf: &[u8]) -> io::Result<usize> {
+            self.file.write(buf)
+        }
+
+        pub fn prepare_rights(mut self) -> io::Result<Self> {
+            self.log(
+                concat!(
+                    "id\t",
+                    "external_identifier\t",
+                    "file_reference\t",
+                    "legal_departments\t",
+                    "holder\t",
+                    "address\t",
+                    "subject\t",
+                    "legal_title\t",
+                    "status\t",
+                    "valid_from\t",
+                    "valid_until\t",
+                    "initially_granted\t",
+                    "last_change\t",
+                    "water_authority\t",
+                    "granting_authority\t",
+                    "annotation\n"
+                )
+                .as_bytes()
+            )?;
+            Ok(self)
+        }
+
+        pub fn prepare_usage_locations(mut self) -> io::Result<Self> {
+            self.log(
+                concat!(
+                    "id\t",
+                    "no\t",
+                    "serial\t",
+                    "water_right\t",
+                    "legal_department\t",
+                    "active\t",
+                    "real\t",
+                    "name\t",
+                    "legal_purpose\t",
+                    "map_excerpt\t",
+                    "municipal_area\t",
+                    "county\t",
+                    "land_record\t",
+                    "plot\t",
+                    "maintenance_association\t",
+                    "eu_survey_area\t",
+                    "catchment_area_code\t",
+                    "regulation_citation\t",
+                    "withdrawal_rates\t",
+                    "pumping_rates\t",
+                    "injection_rates\t",
+                    "waste_water_flow_volume\t",
+                    "river_basin\t",
+                    "groundwater_body\t",
+                    "water_body\t",
+                    "flood_area\t",
+                    "water_protection_area\t",
+                    "dam_target_levels\t",
+                    "fluid_discharge\t",
+                    "rain_supplement\t",
+                    "irrigation_area\t",
+                    "ph_values\t",
+                    "injection_limits\t",
+                    "location\n"
+                )
+                .as_bytes()
+            )?;
+            Ok(self)
+        }
+    }
+
+    impl<T> io::Write for LogThrough<T>
+    where
+        T: io::Write
+    {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            self.file.write(buf)?;
+            self.writer.write(buf)
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            self.file.flush()?;
+            self.writer.flush()
+        }
+    }
 }

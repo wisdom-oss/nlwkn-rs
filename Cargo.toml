@@ -24,6 +24,9 @@ path = "adapter/src/main.rs"
 name = "exporter"
 path = "exporter/src/main.rs"
 
+[features]
+file-log = []
+
 [[package.metadata.resources]]
 url = "https://raw.githubusercontent.com/wisdom-oss/service-water-rights/feature/updated-dataschema/resources/init.sql"
 path = "init.sql"
