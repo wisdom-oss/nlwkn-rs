@@ -329,16 +329,14 @@ impl PostgresCopy for RateRecord {
 impl PostgresCopy for Duration {
     fn copy_to<W: io::Write>(&self, writer: &mut W, ctx: PostgresCopyContext) -> io::Result<()> {
         quoted(
-            |writer, _| {
-                match self.clone() {
-                    Duration::Seconds(s) => write!(writer, "{s} seconds"),
-                    Duration::Minutes(m) => write!(writer, "{m} minutes"),
-                    Duration::Hours(h) => write!(writer, "{h} hours"),
-                    Duration::Days(d) => write!(writer, "{d} days"),
-                    Duration::Weeks(w) => write!(writer, "{} days", w * 7.0),
-                    Duration::Months(m) => write!(writer, "{m} months"),
-                    Duration::Years(y) => write!(writer, "{y} years")
-                }
+            |writer, _| match self.clone() {
+                Duration::Seconds(s) => write!(writer, "{s} seconds"),
+                Duration::Minutes(m) => write!(writer, "{m} minutes"),
+                Duration::Hours(h) => write!(writer, "{h} hours"),
+                Duration::Days(d) => write!(writer, "{d} days"),
+                Duration::Weeks(w) => write!(writer, "{} days", w * 7.0),
+                Duration::Months(m) => write!(writer, "{m} months"),
+                Duration::Years(y) => write!(writer, "{y} years")
             },
             writer,
             ctx
@@ -496,7 +494,7 @@ mod tests {
 
         Ok(())
     }
-    
+
     #[test]
     fn str_copy_to_works() {
         let mut buffer = String::new();
@@ -506,7 +504,7 @@ mod tests {
             input.copy_to(buffer_vec, ctx_depth(0)).unwrap();
         }
         assert_eq!(buffer, r#"some "quoted" text"#, "depth 0");
-    
+
         let mut buffer = String::new();
         unsafe {
             let buffer_vec = buffer.as_mut_vec();
@@ -514,7 +512,7 @@ mod tests {
             input.copy_to(buffer_vec, ctx_depth(1)).unwrap();
         }
         assert_eq!(buffer, r#""some ""quoted"" text""#, "depth 1");
-    
+
         let mut buffer = String::new();
         unsafe {
             let buffer_vec = buffer.as_mut_vec();

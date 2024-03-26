@@ -5,11 +5,13 @@
 
 use std::io::Write;
 
+use nlwkn::cli::PROGRESS_STYLE;
 use nlwkn::helper_types::Quantity;
 use nlwkn::{LegalDepartmentAbbreviation, UsageLocation, WaterRight, WaterRightNo};
 use postgres::{Client as PostgresClient, Transaction};
 
 use crate::postgres_copy::{IterPostgresCopy, PostgresCopy, PostgresCopyContext};
+use crate::PROGRESS;
 
 pub struct InjectionLimit<'il> {
     pub substance: &'il String,
@@ -28,22 +30,18 @@ pub fn water_rights_to_pg(
     water_rights: &[WaterRight]
 ) -> anyhow::Result<()> {
     let mut transaction = pg_client.transaction()?;
-    println!("starting to copy into db");
     copy_water_rights(&mut transaction, water_rights)?;
-    println!("water rights table done");
-    copy_usage_locations(
-        &mut transaction,
-        water_rights
-            .iter()
-            .map(|wr| {
-                wr.legal_departments
-                    .values()
-                    .map(|ld| ld.usage_locations.iter().map(|ul| (wr.no, ld.abbreviation, ul)))
-                    .flatten()
-            })
-            .flatten()
-    )?;
-    println!("usage locations table done");
+    let usage_locations = water_rights
+        .iter()
+        .map(|wr| {
+            wr.legal_departments
+                .values()
+                .map(|ld| ld.usage_locations.iter().map(|ul| (wr.no, ld.abbreviation, ul)))
+                .flatten()
+        })
+        .flatten()
+        .collect();
+    copy_usage_locations(&mut transaction, usage_locations)?;
     transaction.commit()?;
     Ok(())
 }
@@ -66,6 +64,12 @@ fn copy_water_rights(
     transaction: &mut Transaction,
     water_rights: &[WaterRight]
 ) -> anyhow::Result<()> {
+    PROGRESS.set_style(PROGRESS_STYLE.clone());
+    PROGRESS.set_length(water_rights.len() as u64);
+    PROGRESS.set_message("Copying water rights...");
+    PROGRESS.set_prefix("🐘");
+    PROGRESS.set_position(0);
+
     #[cfg_attr(feature = "file-log", allow(unused_mut))]
     let mut writer = transaction.copy_in(
         "
@@ -114,6 +118,7 @@ fn copy_water_rights(
             water_right.annotation.copy_to(&mut writer, ctx)?;
         }
         write!(writer, "\n")?;
+        PROGRESS.inc(1);
     }
 
     #[cfg(feature = "file-log")]
@@ -124,8 +129,14 @@ fn copy_water_rights(
 
 fn copy_usage_locations<'l>(
     transaction: &mut Transaction,
-    usage_location: impl Iterator<Item = (WaterRightNo, LegalDepartmentAbbreviation, &'l UsageLocation)>
+    usage_locations: Vec<(WaterRightNo, LegalDepartmentAbbreviation, &'l UsageLocation)>
 ) -> anyhow::Result<()> {
+    PROGRESS.set_style(PROGRESS_STYLE.clone());
+    PROGRESS.set_length(usage_locations.len() as u64);
+    PROGRESS.set_message("Copying usage locations...");
+    PROGRESS.set_prefix("🐘");
+    PROGRESS.set_position(0);
+
     #[cfg_attr(feature = "file-log", allow(unused_mut))]
     let mut writer = transaction.copy_in(
         "
@@ -143,7 +154,7 @@ fn copy_usage_locations<'l>(
         log_through::LogThrough::new(writer, "usage_locations.export").prepare_usage_locations()?;
 
     let ctx = PostgresCopyContext::default();
-    for (no, lda, location) in usage_location {
+    for (no, lda, location) in usage_locations {
         interleave_tabs! {
             writer;
             writer.write(b"@DEFAULT")?;
@@ -193,6 +204,7 @@ fn copy_usage_locations<'l>(
             .copy_to(&mut writer, ctx)?;
         }
         write!(writer, "\n")?;
+        PROGRESS.inc(1);
     }
 
     #[cfg(feature = "file-log")]
