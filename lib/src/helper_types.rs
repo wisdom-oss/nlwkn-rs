@@ -122,7 +122,7 @@ impl FromStr for Rate<f64> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Duration {
     Seconds(f64),
     Minutes(f64),
