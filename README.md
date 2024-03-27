@@ -15,7 +15,7 @@
 
 <p align="center">
   <a>
-    <img alt="Version" src="https://img.shields.io/badge/version-1.0.0-blue?style=for-the-badge"/>
+    <img alt="Version" src="https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fwisdom-oss%2Fnlwkn-rs%2Fmain%2FCargo.toml&query=package.version&style=for-the-badge&label=version&color=blue"/>
   </a>
 </p>
 
@@ -43,6 +43,10 @@ Each tool resides in its own dedicated directory:
 - [`adapter`](./adapter/README.md):
   A tool to adapt the data types that `nlwkn-rs` is working on and reformat it 
   for other tools or people to use.
+
+- [`exporter`](./exporter/README.md):
+  Exporter for the fully parsed water rights into a 
+  [PostgreSQL](https://www.postgresql.org) database.
 
 For a more detailed overview and instructions specific to each tool, please 
 refer to the README in their respective directories.
