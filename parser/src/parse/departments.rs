@@ -69,7 +69,7 @@ fn parse_usage_location(
                 let captured = USAGE_LOCATION_RE.captures(&v).ok_or(anyhow::Error::msg(
                     format!("'Nutzungsort' has invalid format: {v}")
                 ))?;
-                usage_location.serial_no = Some(captured["ser_no"].to_string());
+                usage_location.serial = Some(captured["ser_no"].to_string());
                 usage_location.active = Some(&captured["active"] == "aktiv");
                 usage_location.real = Some(&captured["real"] == "real");
             }
@@ -81,11 +81,11 @@ fn parse_usage_location(
             ("East und North:", Some(v), _) => usage_location.utm_easting = Some(v.parse()?),
             ("Top. Karte 1:25.000:", None, None) => (),
             ("Top. Karte 1:25.000:", Some(num), None) => {
-                usage_location.top_map_1_25000 =
+                usage_location.map_excerpt =
                     Some(SingleOrPair::Single(num.replace(' ', "").parse()?))
             }
             ("Top. Karte 1:25.000:", Some(num), Some(s)) => {
-                usage_location.top_map_1_25000 =
+                usage_location.map_excerpt =
                     Some(SingleOrPair::Pair(num.replace(' ', "").parse()?, s))
             }
             ("(ETRS89/UTM 32N)", Some(v), _) => usage_location.utm_northing = Some(v.parse()?),
@@ -101,8 +101,8 @@ fn parse_usage_location(
                 ))) {
                     Ok(captured) => usage_location.land_record.replace(
                         LandRecord {
-                            register_district: captured["string"].to_string(),
-                            field_number: captured["num"].parse()?
+                            district: captured["string"].to_string(),
+                            field: captured["num"].parse()?
                         }
                         .into()
                     ),
@@ -122,11 +122,11 @@ fn parse_usage_location(
             ("Gewässer:", v, _) => usage_location.water_body = v,
             ("Einzugsgebietskennzahl:", None, None) => (),
             ("Einzugsgebietskennzahl:", Some(num), None) => {
-                usage_location.basin_code =
+                usage_location.catchment_area_code =
                     Some(SingleOrPair::Single(num.replace(' ', "").parse()?))
             }
             ("Einzugsgebietskennzahl:", Some(num), Some(s)) => {
-                usage_location.basin_code =
+                usage_location.catchment_area_code =
                     Some(SingleOrPair::Pair(num.replace(' ', "").parse()?, s))
             }
             ("Verordnungszitat:", v, _) => usage_location.regulation_citation = v,
@@ -163,13 +163,13 @@ fn parse_allowance_value(
 
     match kind {
         "Entnahmemenge" => {
-            usage_location.withdrawal_rate.insert(rate);
+            usage_location.withdrawal_rates.insert(rate);
         }
         "Förderleistung" => {
-            usage_location.pumping_rate.insert(rate);
+            usage_location.pumping_rates.insert(rate);
         }
         "Einleitungsmenge" => {
-            usage_location.injection_rate.insert(rate);
+            usage_location.injection_rates.insert(rate);
         }
         "Stauziel, bezogen auf NN" => {
             usage_location
@@ -206,7 +206,7 @@ fn parse_allowance_value(
             usage_location.fluid_discharge.insert(rate);
         }
         a if matches!(department, A | B | C | F) => {
-            usage_location.injection_limit.push((a.to_string(), Quantity {
+            usage_location.injection_limits.push((a.to_string(), Quantity {
                 value: value.parse()?,
                 unit: unit.to_string()
             }));

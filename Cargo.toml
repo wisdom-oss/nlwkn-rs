@@ -1,6 +1,6 @@
 [package]
 name = "nlwkn"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 rust-version = "1.65"
 publish = false
@@ -20,16 +20,27 @@ path = "parser/src/main.rs"
 name = "adapter"
 path = "adapter/src/main.rs"
 
+[[bin]]
+name = "exporter"
+path = "exporter/src/main.rs"
+
+[features]
+file-log = []
+
+[[package.metadata.resources]]
+url = "https://raw.githubusercontent.com/wisdom-oss/service-water-rights/feature/updated-dataschema/resources/init.sql"
+path = "init.sql"
+
 [dependencies]
 # async runtime
 tokio = { version = "1", features = ["full"] }
 futures = "0.3"
 
 # reading xlsx
-calamine = { version = "0.21", features = ["dates"] }
+calamine = { version = "0.24", features = ["dates"] }
 
 # reading pdf
-lopdf = "0.31"
+lopdf = "0.32"
 
 # data serialization
 serde = { version = "1", features = ["derive"] }
@@ -47,11 +58,16 @@ static-toml = "1"
 portpicker = "0.1"
 lazy_static = "1"
 regex = "1"
-itertools = "0.11"
-rayon = "1.7"
+itertools = "0.12"
+rayon = "1.8"
+parking_lot = "0.12"
 
 # error handling
 anyhow = "1"
+thiserror = "1"
+
+# postgres
+postgres = "0.19"
 
 # http requests
 [dependencies.reqwest]
@@ -61,7 +77,7 @@ features = ["rustls-tls", "socks"]
 
 # tor connection
 [dependencies.arti]
-version = "1"
+version = "1.2"
 default-features = false
 features = [
     "tokio",
@@ -72,7 +88,7 @@ features = [
 ]
 
 [dependencies.arti-client]
-version = "0.10"
+version = "0.14"
 default-features = false
 features = [
     "tokio",
@@ -84,9 +100,16 @@ features = [
 ]
 
 [dependencies.tor-rtcompat]
-version = "0.9"
+version = "0.10"
 default-features = false
 features = [
     "tokio",
     "rustls"
 ]
+
+[dependencies.tor-config]
+version = "0.11"
+
+[build-dependencies]
+reqwest = { version = "0.11", features = ["blocking"] }
+static-toml = "1"

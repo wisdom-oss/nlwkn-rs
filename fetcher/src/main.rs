@@ -1,8 +1,8 @@
 use std::cmp::Ordering;
 use std::collections::BTreeSet;
-use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
+use std::{fs, io};
 
 use clap::Parser;
 use console::{Alignment, Color};
@@ -11,7 +11,9 @@ use nlwkn::cadenza::{CadenzaTable, CadenzaTableRow};
 use nlwkn::cli::{progress_message, ProgressBarGuard, PRINT_PADDING};
 use nlwkn::WaterRightNo;
 use reqwest::redirect::Policy;
+use thiserror::Error;
 
+use crate::req::FetchReportUrlError;
 use crate::tor::start_socks_proxy;
 
 // mod browse;
@@ -27,7 +29,16 @@ static_toml::static_toml! {
 #[command(version, about)]
 struct Args {
     /// Path to cadenza-provided xlsx file
-    xlsx_path: PathBuf
+    #[clap(required_unless_present = "water_right_no")]
+    xlsx_path: Option<PathBuf>,
+
+    /// Water right number to fetch
+    #[clap(long = "no")]
+    water_right_no: Option<WaterRightNo>,
+
+    /// Ignore already downloaded files
+    #[clap(long)]
+    force: bool
 }
 
 #[tokio::main]
@@ -35,20 +46,11 @@ async fn main() {
     let args = Args::parse();
     let _proxy_handle = tokio::spawn(start_socks_proxy());
 
-    let mut cadenza_table = {
-        let _pb = ProgressBarGuard::new_wait_spinner("Parsing table...");
-        CadenzaTable::from_path(&args.xlsx_path).expect("could not parse table")
+    let to_fetch = match (args.water_right_no, args.xlsx_path) {
+        (Some(no), _) => vec![no],
+        (None, Some(xlsx_path)) => collect_no_from_cadenza_table(&xlsx_path),
+        (None, None) => unreachable!("handled by clap")
     };
-
-    {
-        let _pb = ProgressBarGuard::new_wait_spinner("Sorting table...");
-        cadenza_table.sort_by(sort_cadenza_table);
-    }
-
-    {
-        let _pb = ProgressBarGuard::new_wait_spinner("Deduplicating table...");
-        cadenza_table.dedup_by(dedup_cadenza_table);
-    }
 
     let client = reqwest::ClientBuilder::new()
         .proxy(
@@ -68,21 +70,27 @@ async fn main() {
 
     fs::create_dir_all(CONFIG.data.reports).expect("could not create necessary directories");
 
-    let mut fetched_reports = {
-        let _pb = ProgressBarGuard::new_wait_spinner("Fetching already downloaded reports...");
-        BTreeSet::from_iter(
-            find_fetched_reports().expect("could not find already fetched reports").iter().copied()
-        )
+    let mut fetched_reports = match args.force {
+        true => BTreeSet::new(),
+        false => {
+            let _pb = ProgressBarGuard::new_wait_spinner("Fetching already downloaded reports...");
+            BTreeSet::from_iter(
+                find_fetched_reports()
+                    .expect("could not find already fetched reports")
+                    .iter()
+                    .copied()
+            )
+        }
     };
 
     let mut unfetched_reports = Vec::new();
 
-    let progress = ProgressBar::new(cadenza_table.rows().len() as u64)
+    let progress = ProgressBar::new(to_fetch.len() as u64)
         .with_style(nlwkn::cli::PROGRESS_STYLE.clone())
         .with_message("Fetching Reports");
     progress.enable_steady_tick(Duration::from_secs(1));
 
-    'wr_loop: for water_right_no in cadenza_table.rows().iter().map(|row| row.no) {
+    'wr_loop: for water_right_no in to_fetch {
         if fetched_reports.contains(&water_right_no) {
             progress_message(
                 &progress,
@@ -104,6 +112,17 @@ async fn main() {
                     progress_message(&progress, "Fetched", Color::Green, water_right_no);
                     progress.inc(1);
                     fetched_reports.insert(water_right_no);
+                    continue 'wr_loop;
+                }
+
+                Err(FetchError::ReportUrl(FetchReportUrlError::NoResults)) => {
+                    progress_message(
+                        &progress,
+                        "Warning",
+                        Color::Yellow,
+                        format!("no results found for {water_right_no}")
+                    );
+                    progress.inc(1);
                     continue 'wr_loop;
                 }
 
@@ -147,7 +166,19 @@ async fn main() {
     }
 }
 
-async fn fetch(water_right_no: WaterRightNo, client: &reqwest::Client) -> anyhow::Result<()> {
+#[derive(Debug, Error)]
+enum FetchError {
+    #[error(transparent)]
+    ReportUrl(#[from] FetchReportUrlError),
+
+    #[error(transparent)]
+    Reqwest(#[from] reqwest::Error),
+
+    #[error(transparent)]
+    Write(#[from] io::Error)
+}
+
+async fn fetch(water_right_no: WaterRightNo, client: &reqwest::Client) -> Result<(), FetchError> {
     let report_link = req::fetch_report_url(water_right_no, client).await?;
     let pdf_bytes = client.get(&report_link).send().await?.bytes().await?;
     fs::write(
@@ -158,6 +189,25 @@ async fn fetch(water_right_no: WaterRightNo, client: &reqwest::Client) -> anyhow
     Ok(())
 }
 
+fn collect_no_from_cadenza_table(xlsx_path: &Path) -> Vec<WaterRightNo> {
+    let mut cadenza_table = {
+        let _pb = ProgressBarGuard::new_wait_spinner("Parsing table...");
+        CadenzaTable::from_path(xlsx_path).expect("could not parse table")
+    };
+
+    {
+        let _pb = ProgressBarGuard::new_wait_spinner("Sorting table...");
+        cadenza_table.sort_by(sort_cadenza_table);
+    }
+
+    {
+        let _pb = ProgressBarGuard::new_wait_spinner("Deduplicating table...");
+        cadenza_table.dedup_by(dedup_cadenza_table);
+    }
+
+    cadenza_table.rows().iter().map(|row| row.no).collect()
+}
+
 fn sort_cadenza_table(a: &CadenzaTableRow, b: &CadenzaTableRow) -> Ordering {
     // we want the `E` legal departments first
 
@@ -166,7 +216,7 @@ fn sort_cadenza_table(a: &CadenzaTableRow, b: &CadenzaTableRow) -> Ordering {
     let b_has_e = b.legal_department.starts_with("Entnahme");
 
     // also prioritize some counties
-    let prioritized_counties = vec!["Aurich", "Wittmund", "Friesland", "Leer"];
+    let prioritized_counties = ["Aurich", "Wittmund", "Friesland", "Leer"];
     let a_in_county = match a.county.as_deref() {
         Some(county) => prioritized_counties.contains(&county),
         None => false

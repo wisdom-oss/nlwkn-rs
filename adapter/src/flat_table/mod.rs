@@ -5,7 +5,6 @@ use itertools::Itertools;
 pub use key::*;
 use nlwkn::{WaterRight, WaterRightNo};
 use rayon::prelude::*;
-pub use value::*;
 
 use crate::flat_table::key::FlatTableKey;
 use crate::flat_table::value::FlatTableValue;
@@ -76,10 +75,7 @@ where
             .par_iter()
             .flat_map(|row| {
                 let mut keys = self.keys.iter();
-                let Some(first_key) = keys.next()
-                else {
-                    return None;
-                };
+                let first_key = keys.next()?;
                 let mut row_string = String::new();
                 if let Some(v) = row.get(first_key) {
                     write!(row_string, "{v}").expect("never fails on string")

@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
 
-use calamine::{RangeDeserializerBuilder, Reader, Xlsx};
+use calamine::{DataType, RangeDeserializerBuilder, Reader, Xlsx};
 use serde::{Deserialize, Deserializer};
 
 use crate::util::StringOption;
@@ -100,7 +100,7 @@ impl CadenzaTable {
     pub fn from_path(path: &Path) -> anyhow::Result<CadenzaTable> {
         let mut workbook: Xlsx<_> = calamine::open_workbook(path)?;
         let worksheets = workbook.worksheets();
-        let (_, range) = worksheets.get(0).ok_or(anyhow::Error::msg("workbook empty"))?;
+        let (_, range) = worksheets.first().ok_or(anyhow::Error::msg("workbook empty"))?;
         let iter = RangeDeserializerBuilder::new().has_headers(true).from_range(range)?;
         let rows: Result<Vec<CadenzaTableRow>, _> = iter.collect();
         Ok(CadenzaTable(rows?))
@@ -168,7 +168,7 @@ fn deserialize_date<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
 where
     D: Deserializer<'de>
 {
-    let float: calamine::DataType = calamine::DataType::deserialize(deserializer)?;
+    let float: calamine::Data = calamine::Data::deserialize(deserializer)?;
     Ok(Some(
         float.as_date().ok_or(serde::de::Error::custom("cannot convert to date"))?.to_string()
     ))

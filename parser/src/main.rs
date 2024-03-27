@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Display, Formatter};
 use std::fs;
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::Arc;
@@ -17,7 +18,10 @@ use nlwkn::cadenza::CadenzaTable;
 use nlwkn::cli::{progress_message, PROGRESS_STYLE, PROGRESS_UPDATE_INTERVAL, SPINNER_STYLE};
 use nlwkn::util::{zero_is_none, OptionUpdate};
 use nlwkn::{WaterRight, WaterRightNo};
+use parking_lot::Mutex;
 use regex::Regex;
+use serde::{Serialize, Serializer};
+use thiserror::Error;
 use tokio::task::JoinHandle;
 
 use crate::parse::parse_document;
@@ -28,6 +32,7 @@ mod parse;
 lazy_static! {
     static ref REPORT_FILE_RE: Regex = Regex::new(r"^rep(?<no>\d+).pdf$").expect("valid regex");
     static ref PROGRESS: ProgressBar = ProgressBar::new_spinner();
+    static ref WARNINGS: Mutex<Vec<Warning>> = Default::default();
 }
 
 /// NLWKN Water Right Parser
@@ -44,6 +49,48 @@ struct Args {
     /// Parse specific water right number report
     #[arg(long = "no")]
     water_right_no: Option<WaterRightNo>
+}
+
+#[derive(Debug, Error, Serialize)]
+#[serde(tag = "type")]
+enum Warning {
+    #[error("could not parse report for {water_right_no}, {error}, will be skipped")]
+    CouldNotParse {
+        water_right_no: WaterRightNo,
+        #[source]
+        #[serde(serialize_with = "serialize_anyhow_error")]
+        error: anyhow::Error
+    },
+
+    #[error("could not extract water right number from {file_name:?}, will be ignored")]
+    CouldNotExtractWaterRightNo { file_name: String },
+
+    #[error("could not load {count} reports")]
+    CouldNotLoadReports { count: usize },
+
+    #[error(
+        "could not find usage location no for report {water_right_no}, enrichment may be missing \
+         values"
+    )]
+    CouldNotFindUsageLocation { water_right_no: WaterRightNo },
+
+    #[error(
+        "in the report {water_right_no} the usage locations {missing_locations:?} are missing"
+    )]
+    MissingLocations {
+        water_right_no: WaterRightNo,
+        missing_locations: Vec<u64>
+    },
+
+    #[error("a date in {water_right_no} has an invalid format")]
+    InvalidDateFormat { water_right_no: WaterRightNo }
+}
+
+fn serialize_anyhow_error<S>(error: &anyhow::Error, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer
+{
+    error.to_string().serialize(serializer)
 }
 
 // TODO: add edge case handling input
@@ -141,14 +188,14 @@ async fn main() -> ExitCode {
                 no
             }
 
-            Err((water_right_no, err)) => {
-                progress_message(
-                    &PROGRESS,
-                    "Warning",
-                    Color::Yellow,
-                    format!("could not parse report for {water_right_no}, {err}, will be skipped")
-                );
-                parsing_issues.insert(water_right_no, err.to_string());
+            Err((water_right_no, error)) => {
+                parsing_issues.insert(water_right_no, error.to_string());
+                let warning = Warning::CouldNotParse {
+                    water_right_no,
+                    error
+                };
+                progress_message(&PROGRESS, "Warning", Color::Yellow, &warning);
+                WARNINGS.lock().push(warning);
                 water_right_no
             }
         };
@@ -215,12 +262,11 @@ fn load_reports(
         let file_name = file_name.to_string_lossy();
         let Some(captured) = REPORT_FILE_RE.captures(file_name.as_ref())
         else {
-            progress_message(
-                &PROGRESS,
-                "Warning",
-                Color::Yellow,
-                format!("could not extract water right number from {file_name:?}, will be ignored")
-            );
+            let warning = Warning::CouldNotExtractWaterRightNo {
+                file_name: file_name.to_string()
+            };
+            progress_message(&PROGRESS, "Warning", Color::Yellow, &warning);
+            WARNINGS.lock().push(warning);
             continue;
         };
         let water_right_no: WaterRightNo = captured["no"].parse()?;
@@ -244,12 +290,11 @@ fn load_reports(
         format!("{} reports correctly", reports.len())
     );
     if !broken_reports.is_empty() {
-        progress_message(
-            &PROGRESS,
-            "Warning",
-            Color::Yellow,
-            format!("could not load {} reports", broken_reports.len())
-        );
+        let warning = Warning::CouldNotLoadReports {
+            count: broken_reports.len()
+        };
+        progress_message(&PROGRESS, "Warning", Color::Yellow, &warning);
+        WARNINGS.lock().push(warning);
     }
 
     Ok((reports, broken_reports))
@@ -274,14 +319,14 @@ fn parsing_task(
         for row in cadenza_table.rows().iter().filter(|row| row.no == water_right_no) {
             enriched = true;
             let wr = &mut water_right;
-            wr.rights_holder.update_if_none_clone(row.rights_holder.as_ref());
+            wr.holder.update_if_none_clone(row.rights_holder.as_ref());
             wr.valid_until.update_if_none_clone(row.valid_until.as_ref());
             wr.status.update_if_none_clone(row.status.as_ref());
             wr.valid_from.update_if_none_clone(row.valid_from.as_ref());
             wr.legal_title.update_if_none_clone(row.legal_title.as_ref());
             wr.water_authority.update_if_none_clone(row.water_authority.as_ref());
             wr.granting_authority.update_if_none_clone(row.granting_authority.as_ref());
-            wr.date_of_change.update_if_none_clone(row.date_of_change.as_ref());
+            wr.last_change.update_if_none_clone(row.date_of_change.as_ref());
             wr.file_reference.update_if_none_clone(row.file_reference.as_ref());
             wr.external_identifier.update_if_none_clone(row.external_identifier.as_ref());
             wr.address.update_if_none_clone(row.address.as_ref());
@@ -314,15 +359,9 @@ fn parsing_task(
                     usage_location.usage_location_no
                 }
                 (None, None) => {
-                    progress_message(
-                        &PROGRESS,
-                        "Warning",
-                        Color::Yellow,
-                        format!(
-                            "could not find usage location no for report {water_right_no}, \
-                             enrichment may be missing values"
-                        )
-                    );
+                    let warning = Warning::CouldNotFindUsageLocation { water_right_no };
+                    progress_message(&PROGRESS, "Warning", Color::Yellow, &warning);
+                    WARNINGS.lock().push(warning);
                     continue;
                 }
             };
@@ -352,16 +391,13 @@ fn parsing_task(
         }
 
         if !relevant_cadenza_rows.is_empty() {
-            let missing_locations = relevant_cadenza_rows.keys().collect::<Vec<_>>();
-            progress_message(
-                &PROGRESS,
-                "Warning",
-                Color::Yellow,
-                format!(
-                    "in the report {} the usage locations {:?} are missing",
-                    water_right_no, missing_locations
-                )
-            );
+            let missing_locations = relevant_cadenza_rows.keys().copied().collect::<Vec<_>>();
+            let warning = Warning::MissingLocations {
+                water_right_no,
+                missing_locations
+            };
+            progress_message(&PROGRESS, "Warning", Color::Yellow, &warning);
+            WARNINGS.lock().push(warning);
         }
 
         // remove "Bemerkung: " from annotations if they begin with that
@@ -391,8 +427,8 @@ fn parsing_task(
         for date_opt in [
             &mut water_right.valid_until,
             &mut water_right.valid_from,
-            &mut water_right.first_grant,
-            &mut water_right.date_of_change
+            &mut water_right.initially_granted,
+            &mut water_right.last_change
         ] {
             let Some(date) = date_opt.as_ref()
             else {
@@ -404,12 +440,9 @@ fn parsing_task(
             let month = split.next();
             let year = split.next();
             if split.next().is_some() {
-                progress_message(
-                    &PROGRESS,
-                    "Warning",
-                    Color::Yellow,
-                    format!("a date in {water_right_no} has an invalid format")
-                );
+                let warning = Warning::InvalidDateFormat { water_right_no };
+                progress_message(&PROGRESS, "Warning", Color::Yellow, &warning);
+                WARNINGS.lock().push(warning);
                 continue;
             }
 
@@ -437,11 +470,12 @@ fn save_results(
     parsing_issues: &BTreeMap<WaterRightNo, String>
 ) -> Result<ResultPaths, String> {
     // TODO: use multiple smaller functions for clarity
+    // TODO: maybe use globals here, could be easier to understand
 
     // save parsed reports
 
     let reports_json_path = {
-        let mut path: PathBuf = data_path.clone().into();
+        let mut path: PathBuf = data_path.into();
         path.push("reports.json");
         path
     };
@@ -462,7 +496,7 @@ fn save_results(
     // save pdf only reports
 
     let pdf_only_reports_json_path = {
-        let mut path: PathBuf = data_path.clone().into();
+        let mut path: PathBuf = data_path.into();
         path.push("pdf-only-reports.json");
         path
     };
@@ -494,7 +528,7 @@ fn save_results(
     };
 
     let broken_reports_path = {
-        let mut path: PathBuf = data_path.clone().into();
+        let mut path: PathBuf = data_path.into();
         path.push("broken-reports.json");
         path
     };
@@ -511,13 +545,28 @@ fn save_results(
     };
 
     let parsing_issues_path = {
-        let mut path: PathBuf = data_path.clone().into();
+        let mut path: PathBuf = data_path.into();
         path.push("parsing-issues.json");
         path
     };
 
     if let Err(e) = fs::write(&parsing_issues_path, parsing_issues_json) {
         return Err(format!("could not write parsing issues json, {e}"));
+    }
+
+    let warnings_json = match serde_json::to_string_pretty(WARNINGS.lock().deref()) {
+        Ok(json) => json,
+        Err(e) => return Err(format!("could not serialize warnings to json, {e}"))
+    };
+
+    let warnings_path = {
+        let mut path: PathBuf = data_path.into();
+        path.push("warnings.json");
+        path
+    };
+
+    if let Err(e) = fs::write(warnings_path, warnings_json) {
+        return Err(format!("could not write warnings json, {e}"));
     }
 
     Ok(ResultPaths {

@@ -103,10 +103,10 @@ fn construct_out_path(reports_json_path: &Path, format: Format) -> PathBuf {
     }
 }
 
-fn flatten_notifier<'ac>(
-    atomic_counter: &'ac AtomicUsize,
+fn flatten_notifier(
+    atomic_counter: &AtomicUsize,
     water_rights_len: usize
-) -> impl Fn(Progress) + 'ac {
+) -> impl Fn(Progress) + '_ {
     PROGRESS.set_style(PROGRESS_STYLE.clone());
     PROGRESS.set_length(water_rights_len as u64);
     PROGRESS.set_message("Flattening Reports");
@@ -131,7 +131,7 @@ fn flatten_notifier<'ac>(
     }
 }
 
-fn csv_notifier<'ac>(atomic_counter: &'ac AtomicUsize) -> impl Fn() + 'ac {
+fn csv_notifier(atomic_counter: &AtomicUsize) -> impl Fn() + '_ {
     PROGRESS.set_style(PROGRESS_STYLE.clone());
     // the length is the same as before
     PROGRESS.set_message("Formatting CSV");
