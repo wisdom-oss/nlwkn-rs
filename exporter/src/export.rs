@@ -33,13 +33,11 @@ pub fn water_rights_to_pg(
     copy_water_rights(&mut transaction, water_rights)?;
     let usage_locations = water_rights
         .iter()
-        .map(|wr| {
+        .flat_map(|wr| {
             wr.legal_departments
                 .values()
-                .map(|ld| ld.usage_locations.iter().map(|ul| (wr.no, ld.abbreviation, ul)))
-                .flatten()
+                .flat_map(|ld| ld.usage_locations.iter().map(|ul| (wr.no, ld.abbreviation, ul)))
         })
-        .flatten()
         .collect();
     copy_usage_locations(&mut transaction, usage_locations)?;
     PROGRESS.set_style(SPINNER_STYLE.clone());
@@ -57,7 +55,7 @@ macro_rules! interleave_tabs {
     // Match any expression followed by a comma, and then recursively call for the rest
     ($writer:expr; $expr:expr; $($rest:expr);+ $(;)?) => {
         $expr; // Execute the first expression
-        $writer.write(b"\t")?; // Write a tab.
+        $writer.write_all(b"\t")?; // Write a tab.
         interleave_tabs!($writer; $($rest);*); // Recursively process the remaining expressions
     };
 }
@@ -119,7 +117,7 @@ fn copy_water_rights(
             water_right.granting_authority.copy_to(&mut writer, ctx)?;
             water_right.annotation.copy_to(&mut writer, ctx)?;
         }
-        write!(writer, "\n")?;
+        writeln!(writer)?;
         PROGRESS.inc(1);
     }
 
@@ -129,9 +127,9 @@ fn copy_water_rights(
     Ok(())
 }
 
-fn copy_usage_locations<'l>(
+fn copy_usage_locations(
     transaction: &mut Transaction,
-    usage_locations: Vec<(WaterRightNo, LegalDepartmentAbbreviation, &'l UsageLocation)>
+    usage_locations: Vec<(WaterRightNo, LegalDepartmentAbbreviation, &UsageLocation)>
 ) -> anyhow::Result<()> {
     PROGRESS.set_style(PROGRESS_STYLE.clone());
     PROGRESS.set_length(usage_locations.len() as u64);
@@ -159,7 +157,7 @@ fn copy_usage_locations<'l>(
     for (no, lda, location) in usage_locations {
         interleave_tabs! {
             writer;
-            writer.write(b"@DEFAULT")?;
+            writer.write_all(b"@DEFAULT")?;
             location.no.copy_to(&mut writer, ctx)?;
             location.serial.copy_to(&mut writer, ctx)?;
             no.copy_to(&mut writer, ctx)?;
@@ -205,7 +203,7 @@ fn copy_usage_locations<'l>(
             }
             .copy_to(&mut writer, ctx)?;
         }
-        write!(writer, "\n")?;
+        writeln!(writer)?;
         PROGRESS.inc(1);
     }
 
@@ -320,7 +318,7 @@ mod log_through {
         T: io::Write
     {
         fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-            self.file.write(buf)?;
+            self.file.write_all(buf)?;
             self.writer.write(buf)
         }
 

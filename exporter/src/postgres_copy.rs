@@ -149,7 +149,7 @@ where
         while let Some(it) = iter.next() {
             it.copy_to(writer, ctx.array())?;
             if iter.peek().is_some() {
-                writer.write(b",")?;
+                writer.write_all(b",")?;
             }
         }
         write!(writer, "}}")?;
@@ -186,9 +186,9 @@ impl PostgresCopy for str {
                     '"' if d <= 1 => write!(w, r#"""#),
                     '"' => {
                         // same double backslash as in `quoted`
-                        repeat!(2..d, w.write(br"\\")?);
+                        repeat!(2..d, w.write_all(br"\\")?);
                         write!(w, r#"""#)?;
-                        repeat!(2..d, w.write(br"\\")?);
+                        repeat!(2..d, w.write_all(br"\\")?);
                         write!(w, r#"""#)
                     }
                     '\\' => write!(w, r"\"),
@@ -329,7 +329,7 @@ impl PostgresCopy for RateRecord {
 impl PostgresCopy for Duration {
     fn copy_to<W: io::Write>(&self, writer: &mut W, ctx: PostgresCopyContext) -> io::Result<()> {
         quoted(
-            |writer, _| match self.clone() {
+            |writer, _| match *self {
                 Duration::Seconds(s) => write!(writer, "{s} seconds"),
                 Duration::Minutes(m) => write!(writer, "{m} minutes"),
                 Duration::Hours(h) => write!(writer, "{h} hours"),
@@ -431,7 +431,7 @@ mod tests {
         unsafe {
             let mut buffer_vec = buffer.as_mut_vec();
             quoted(
-                |w, _| w.write(b"123").map(|_| ()),
+                |w, _| w.write_all(b"123").map(|_| ()),
                 &mut buffer_vec,
                 ctx_depth(0)
             )
@@ -443,7 +443,7 @@ mod tests {
         unsafe {
             let mut buffer_vec = buffer.as_mut_vec();
             quoted(
-                |w, _| w.write(b"123").map(|_| ()),
+                |w, _| w.write_all(b"123").map(|_| ()),
                 &mut buffer_vec,
                 ctx_depth(1)
             )
@@ -455,7 +455,7 @@ mod tests {
         unsafe {
             let mut buffer_vec = buffer.as_mut_vec();
             quoted(
-                |w, _| w.write(b"123").map(|_| ()),
+                |w, _| w.write_all(b"123").map(|_| ()),
                 &mut buffer_vec,
                 ctx_depth(2)
             )
@@ -467,7 +467,7 @@ mod tests {
         unsafe {
             let mut buffer_vec = buffer.as_mut_vec();
             quoted(
-                |w, _| w.write(b"123").map(|_| ()),
+                |w, _| w.write_all(b"123").map(|_| ()),
                 &mut buffer_vec,
                 ctx_depth(3)
             )
