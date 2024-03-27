@@ -5,7 +5,7 @@
 
 use std::io::Write;
 
-use nlwkn::cli::PROGRESS_STYLE;
+use nlwkn::cli::{PROGRESS_STYLE, SPINNER_STYLE};
 use nlwkn::helper_types::Quantity;
 use nlwkn::{LegalDepartmentAbbreviation, UsageLocation, WaterRight, WaterRightNo};
 use postgres::{Client as PostgresClient, Transaction};
@@ -42,6 +42,8 @@ pub fn water_rights_to_pg(
         .flatten()
         .collect();
     copy_usage_locations(&mut transaction, usage_locations)?;
+    PROGRESS.set_style(SPINNER_STYLE.clone());
+    PROGRESS.set_message("Committing transaction to database...");
     transaction.commit()?;
     Ok(())
 }
