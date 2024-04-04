@@ -150,6 +150,35 @@ impl CadenzaTable {
             row.water_protection_area = row.water_protection_area.take().sanitize();
         }
     }
+
+    /// Convert the default cadenza filename into a iso 8061 timestamp.
+    /// 
+    /// For example `table04042024125645598.xlsx` will result into 
+    /// `2024-04-04T12:56:45.598`.
+    pub fn path_to_iso_date(path: &Path) -> Option<String> {
+        let file_stem = path.file_stem()?.to_string_lossy();
+        let digits = file_stem.strip_prefix("table")?;
+        if !digits.is_ascii() || digits.len() != 17 {
+            // digits are only ascii characters
+            return None;
+        }
+
+        let mut date = String::with_capacity("YYYY-MM-DDTHH:MM:SS.sss".len());
+        date.push_str(&digits[4..8]);
+        date.push('-');
+        date.push_str(&digits[2..4]);
+        date.push('-');
+        date.push_str(&digits[0..2]);
+        date.push('T');
+        date.push_str(&digits[8..10]);
+        date.push(':');
+        date.push_str(&digits[10..12]);
+        date.push(':');
+        date.push_str(&digits[12..14]);
+        date.push('.');
+        date.push_str(&digits[14..17]);
+        Some(date)
+    }
 }
 
 impl PartialEq for CadenzaTableRow {
@@ -260,5 +289,33 @@ mod tests {
         for (i, r) in [1, 2, 3].iter().zip(table.rows().iter()) {
             assert_eq!(*i, r.no);
         }
+    }
+
+    #[test]
+    fn path_to_iso_date_works() {
+        assert_eq!(
+            CadenzaTable::path_to_iso_date(&Path::new("table04042024125645598.xlsx")),
+            Some(String::from("2024-04-04T12:56:45.598"))
+        );
+
+        assert_eq!(
+            CadenzaTable::path_to_iso_date(&Path::new("some_dir/table04042024125645598.xlsx")),
+            Some(String::from("2024-04-04T12:56:45.598"))
+        );
+
+        assert_eq!(
+            CadenzaTable::path_to_iso_date(&Path::new("table0404202412564559.xlsx")),
+            None
+        );
+
+        assert_eq!(
+            CadenzaTable::path_to_iso_date(&Path::new("table040420241256455981.xlsx")),
+            None
+        );
+
+        assert_eq!(
+            CadenzaTable::path_to_iso_date(&Path::new("0404202412564559.xlsx")),
+            None
+        );
     }
 }
