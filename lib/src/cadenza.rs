@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use calamine::{DataType, RangeDeserializerBuilder, Reader, Xlsx};
 use serde::{Deserialize, Deserializer};
@@ -101,14 +101,15 @@ pub struct CadenzaTableRow {
 }
 
 impl CadenzaTable {
-    pub fn from_path(path: &Path) -> anyhow::Result<CadenzaTable> {
-        let mut workbook: Xlsx<_> = calamine::open_workbook(path)?;
+    pub fn from_path(path: impl Into<PathBuf>) -> anyhow::Result<CadenzaTable> {
+        let path = path.into();
+        let mut workbook: Xlsx<_> = calamine::open_workbook(&path)?;
         let worksheets = workbook.worksheets();
         let (_, range) = worksheets.first().ok_or(anyhow::Error::msg("workbook empty"))?;
         let iter = RangeDeserializerBuilder::new().has_headers(true).from_range(range)?;
         let rows: Result<Vec<CadenzaTableRow>, _> = iter.collect();
         Ok(CadenzaTable {
-            path: path.to_owned(),
+            path,
             rows: rows?
         })
     }
@@ -251,6 +252,7 @@ impl Hash for CadenzaTableRow {
 }
 
 /// Differences between two [`CadenzaTable`]s.
+#[derive(Debug)]
 pub struct CadenzaTableDiff<'b> {
     /// Timestamps of both tables, (`self`, `other`)
     pub compared: (Option<String>, Option<String>),
