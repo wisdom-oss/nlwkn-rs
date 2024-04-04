@@ -186,6 +186,56 @@ impl CadenzaTable {
         date.push_str(&digits[14..17]);
         Some(date)
     }
+
+    pub fn diff<'s, 'o, 'b>(&'s self, other: &'o Self) -> CadenzaTableDiff<'b>
+    where
+        's: 'b,
+        'o: 'b
+    {
+        #[derive(Debug, PartialEq, Eq, Hash)]
+        struct FullHashCadenzaTableRow<'r>(&'r CadenzaTableRow);
+
+        let self_map: HashMap<_, FullHashCadenzaTableRow<'b>> =
+            HashMap::from_iter(self.rows.iter().map(|row| {
+                (
+                    (row.no, row.usage_location_no),
+                    FullHashCadenzaTableRow(row)
+                )
+            }));
+
+        let other_map: HashMap<_, FullHashCadenzaTableRow<'b>> =
+            HashMap::from_iter(other.rows.iter().map(|row| {
+                (
+                    (row.no, row.usage_location_no),
+                    FullHashCadenzaTableRow(row)
+                )
+            }));
+
+        let keys: HashSet<(u64, u64)> =
+            HashSet::from_iter(self_map.keys().cloned().chain(other_map.keys().cloned()));
+
+        let mut diff = CadenzaTableDiff {
+            compared: (self.iso_date(), other.iso_date()),
+            added: vec![],
+            removed: vec![],
+            modified: vec![]
+        };
+
+        for ref key in keys {
+            match (self_map.get(key), other_map.get(key)) {
+                (None, None) => unreachable!("key must be from at least one map"),
+                (Some(self_row), None) => diff.removed.push(self_row.0),
+                (None, Some(other_row)) => diff.added.push(other_row.0),
+                (Some(self_row), Some(other_row)) => {
+                    if self_row != other_row {
+                        diff.modified.push((self_row.0, other_row.0))
+                    }
+                }
+            }
+        }
+
+        diff
+    }
 }
 
 impl PartialEq for CadenzaTableRow {
@@ -198,6 +248,15 @@ impl Hash for CadenzaTableRow {
     fn hash<H: Hasher>(&self, state: &mut H) {
         (self.no, self.usage_location_no).hash(state)
     }
+}
+
+/// Differences between two [`CadenzaTable`]s.
+pub struct CadenzaTableDiff<'b> {
+    /// Timestamps of both tables, (`self`, `other`)
+    pub compared: (Option<String>, Option<String>),
+    pub added: Vec<&'b CadenzaTableRow>,
+    pub removed: Vec<&'b CadenzaTableRow>,
+    pub modified: Vec<(&'b CadenzaTableRow, &'b CadenzaTableRow)>
 }
 
 fn deserialize_date<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
