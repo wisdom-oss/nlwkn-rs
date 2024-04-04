@@ -160,8 +160,8 @@ async fn main() -> ExitCode {
         tasks.push(parsing_task(water_right_no, document, cadenza_table));
     }
 
-    let mut water_rights = Vec::with_capacity(cadenza_table.rows().capacity());
-    let mut pdf_only_water_rights = Vec::with_capacity(cadenza_table.rows().capacity());
+    let mut water_rights = Vec::with_capacity(cadenza_table.rows().len());
+    let mut pdf_only_water_rights = Vec::with_capacity(cadenza_table.rows().len());
     let mut parsing_issues = BTreeMap::new();
     while let Some(task_res) = tasks.next().await {
         let parse_res = match task_res {
