@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
+use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use calamine::{DataType, RangeDeserializerBuilder, Reader, Xlsx};
 use serde::{Deserialize, Deserializer};
@@ -9,7 +10,10 @@ use crate::util::StringOption;
 use crate::WaterRightNo;
 
 #[derive(Debug)]
-pub struct CadenzaTable(Vec<CadenzaTableRow>);
+pub struct CadenzaTable {
+    path: PathBuf,
+    rows: Vec<CadenzaTableRow>
+}
 
 #[derive(Debug, Deserialize, Eq)]
 #[cfg_attr(test, derive(Default))]
@@ -103,18 +107,21 @@ impl CadenzaTable {
         let (_, range) = worksheets.first().ok_or(anyhow::Error::msg("workbook empty"))?;
         let iter = RangeDeserializerBuilder::new().has_headers(true).from_range(range)?;
         let rows: Result<Vec<CadenzaTableRow>, _> = iter.collect();
-        Ok(CadenzaTable(rows?))
+        Ok(CadenzaTable {
+            path: path.to_owned(),
+            rows: rows?
+        })
     }
 
-    pub fn rows(&self) -> &Vec<CadenzaTableRow> {
-        &self.0
+    pub fn rows(&self) -> &[CadenzaTableRow] {
+        &self.rows
     }
 
     pub fn sort_by<F>(&mut self, compare: F)
     where
         F: FnMut(&CadenzaTableRow, &CadenzaTableRow) -> Ordering
     {
-        let slice = self.0.as_mut_slice();
+        let slice = self.rows.as_mut_slice();
         slice.sort_by(compare);
     }
 
@@ -122,12 +129,12 @@ impl CadenzaTable {
     where
         F: FnMut(&mut CadenzaTableRow, &mut CadenzaTableRow) -> bool
     {
-        self.0.dedup_by(same_bucket);
+        self.rows.dedup_by(same_bucket);
     }
 
     pub fn sanitize(&mut self) {
         #[allow(deprecated)]
-        for row in self.0.iter_mut() {
+        for row in self.rows.iter_mut() {
             row.rights_holder = row.rights_holder.take().sanitize();
             row.valid_until = row.valid_until.take().sanitize();
             row.status = row.status.take().sanitize();
@@ -152,11 +159,11 @@ impl CadenzaTable {
     }
 
     /// Convert the default cadenza filename into a iso 8061 timestamp.
-    /// 
-    /// For example `table04042024125645598.xlsx` will result into 
+    ///
+    /// For example `table04042024125645598.xlsx` will result into
     /// `2024-04-04T12:56:45.598`.
-    pub fn path_to_iso_date(path: &Path) -> Option<String> {
-        let file_stem = path.file_stem()?.to_string_lossy();
+    pub fn iso_date(&self) -> Option<String> {
+        let file_stem = self.path.file_stem()?.to_string_lossy();
         let digits = file_stem.strip_prefix("table")?;
         if !digits.is_ascii() || digits.len() != 17 {
             // digits are only ascii characters
@@ -280,7 +287,10 @@ mod tests {
             ..Default::default()
         };
 
-        let mut table = CadenzaTable(vec![a, b, c]);
+        let mut table = CadenzaTable {
+            path: PathBuf::new(),
+            rows: vec![a, b, c]
+        };
         for (i, r) in [3, 2, 1].iter().zip(table.rows().iter()) {
             assert_eq!(*i, r.no);
         }
@@ -293,29 +303,23 @@ mod tests {
 
     #[test]
     fn path_to_iso_date_works() {
+        let table = |path| CadenzaTable {
+            path: PathBuf::from(path),
+            rows: vec![]
+        };
+
         assert_eq!(
-            CadenzaTable::path_to_iso_date(&Path::new("table04042024125645598.xlsx")),
+            table("table04042024125645598.xlsx").iso_date(),
             Some(String::from("2024-04-04T12:56:45.598"))
         );
 
         assert_eq!(
-            CadenzaTable::path_to_iso_date(&Path::new("some_dir/table04042024125645598.xlsx")),
+            table("some_dir/table04042024125645598.xlsx").iso_date(),
             Some(String::from("2024-04-04T12:56:45.598"))
         );
 
-        assert_eq!(
-            CadenzaTable::path_to_iso_date(&Path::new("table0404202412564559.xlsx")),
-            None
-        );
-
-        assert_eq!(
-            CadenzaTable::path_to_iso_date(&Path::new("table040420241256455981.xlsx")),
-            None
-        );
-
-        assert_eq!(
-            CadenzaTable::path_to_iso_date(&Path::new("0404202412564559.xlsx")),
-            None
-        );
+        assert_eq!(table("table0404202412564559.xlsx").iso_date(), None);
+        assert_eq!(table("table040420241256455981.xlsx").iso_date(), None);
+        assert_eq!(table("0404202412564559.xlsx").iso_date(), None);
     }
 }
