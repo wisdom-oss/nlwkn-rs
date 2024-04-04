@@ -32,6 +32,10 @@ struct Args {
     #[clap(required_unless_present = "water_right_no")]
     xlsx_path: Option<PathBuf>,
 
+    /// Path to another xlxs file to only pull updates
+    #[clap(long = "diff")]
+    xlsx_path_diff: Option<PathBuf>,
+
     /// Water right number to fetch
     #[clap(long = "no")]
     water_right_no: Option<WaterRightNo>,
