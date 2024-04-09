@@ -1,24 +1,35 @@
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
+use std::ops::Deref;
 use std::path::PathBuf;
 
 use calamine::{DataType, RangeDeserializerBuilder, Reader, Xlsx};
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::util::StringOption;
 use crate::WaterRightNo;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct CadenzaTable {
     path: PathBuf,
     rows: Vec<CadenzaTableRow>
 }
 
-#[derive(Debug, Deserialize, Eq)]
+/// Inner representation of a row in a [`CadenzaTable`].
+///
+/// This struct should be used primarily by the library itself or for complex 
+/// custom manipulations where direct access to row values is necessary. 
+/// It manages the low-level representation and operations on data within a row.
+/// For faster but less precise equality checks or hashing, use 
+/// [`CadenzaTableRow`], which dereferences to this type for basic operations.
+///
+/// Note: The [`CadenzaTable::diff`] method utilizes the full equality checks
+/// provided by this type to ensure accurate comparisons between rows.
 #[cfg_attr(test, derive(Default))]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Hash)]
 #[serde(deny_unknown_fields)]
-pub struct CadenzaTableRow {
+pub struct CadenzaTableRowInner {
     #[serde(rename = "Wasserrecht Nr.")]
     pub no: WaterRightNo,
 
@@ -100,6 +111,23 @@ pub struct CadenzaTableRow {
     pub utm_northing: Option<u64>
 }
 
+/// Represents a row in a [`CadenzaTable`].
+///
+/// This is the primary type used for interacting with rows in the table 
+/// throughout the codebase.
+/// It wraps a [`CadenzaTableRowInner`] which holds the actual data values, 
+/// while providing an easier and more intuitive interface for most operations.
+///
+/// Implements [`Deref`] targeting [`CadenzaTableRowInner`] to facilitate direct 
+/// access to inner values. 
+/// It's designed to be transparent during serialization and testing, mirroring 
+/// the behavior and attributes of its inner type.
+#[derive(Debug, Deserialize, Serialize, Eq)]
+#[cfg_attr(test, derive(Default))]
+#[repr(transparent)]
+#[serde(transparent)]
+pub struct CadenzaTableRow(CadenzaTableRowInner);
+
 impl CadenzaTable {
     pub fn from_path(path: impl Into<PathBuf>) -> anyhow::Result<CadenzaTable> {
         let path = path.into();
@@ -108,10 +136,7 @@ impl CadenzaTable {
         let (_, range) = worksheets.first().ok_or(anyhow::Error::msg("workbook empty"))?;
         let iter = RangeDeserializerBuilder::new().has_headers(true).from_range(range)?;
         let rows: Result<Vec<CadenzaTableRow>, _> = iter.collect();
-        Ok(CadenzaTable {
-            path,
-            rows: rows?
-        })
+        Ok(CadenzaTable { path, rows: rows? })
     }
 
     pub fn rows(&self) -> &[CadenzaTableRow] {
@@ -135,7 +160,7 @@ impl CadenzaTable {
 
     pub fn sanitize(&mut self) {
         #[allow(deprecated)]
-        for row in self.rows.iter_mut() {
+        for row in self.rows.iter_mut().map(|r| &mut r.0) {
             row.rights_holder = row.rights_holder.take().sanitize();
             row.valid_until = row.valid_until.take().sanitize();
             row.status = row.status.take().sanitize();
@@ -193,24 +218,10 @@ impl CadenzaTable {
         's: 'b,
         'o: 'b
     {
-        #[derive(Debug, PartialEq, Eq, Hash)]
-        struct FullHashCadenzaTableRow<'r>(&'r CadenzaTableRow);
-
-        let self_map: HashMap<_, FullHashCadenzaTableRow<'b>> =
-            HashMap::from_iter(self.rows.iter().map(|row| {
-                (
-                    (row.no, row.usage_location_no),
-                    FullHashCadenzaTableRow(row)
-                )
-            }));
-
-        let other_map: HashMap<_, FullHashCadenzaTableRow<'b>> =
-            HashMap::from_iter(other.rows.iter().map(|row| {
-                (
-                    (row.no, row.usage_location_no),
-                    FullHashCadenzaTableRow(row)
-                )
-            }));
+        let self_map: HashMap<_, _> =
+            HashMap::from_iter(self.rows().iter().map(|row| (row.key(), row)));
+        let other_map: HashMap<_, _> =
+            HashMap::from_iter(other.rows().iter().map(|row| (row.key(), row)));
 
         let keys: HashSet<(u64, u64)> =
             HashSet::from_iter(self_map.keys().cloned().chain(other_map.keys().cloned()));
@@ -225,11 +236,12 @@ impl CadenzaTable {
         for ref key in keys {
             match (self_map.get(key), other_map.get(key)) {
                 (None, None) => unreachable!("key must be from at least one map"),
-                (Some(self_row), None) => diff.removed.push(self_row.0),
-                (None, Some(other_row)) => diff.added.push(other_row.0),
+                (Some(self_row), None) => diff.removed.push(self_row),
+                (None, Some(other_row)) => diff.added.push(other_row),
                 (Some(self_row), Some(other_row)) => {
-                    if self_row != other_row {
-                        diff.modified.push((self_row.0, other_row.0))
+                    // use inner representation to ensure a full check
+                    if self_row.0 != other_row.0 {
+                        diff.modified.push((self_row, other_row))
                     }
                 }
             }
@@ -239,20 +251,35 @@ impl CadenzaTable {
     }
 }
 
+impl CadenzaTableRow {
+    /// Construct a key for maps.
+    pub fn key(&self) -> (u64, u64) {
+        (self.no, self.usage_location_no)
+    }
+}
+
+impl Deref for CadenzaTableRow {
+    type Target = CadenzaTableRowInner;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl PartialEq for CadenzaTableRow {
     fn eq(&self, other: &Self) -> bool {
-        self.no == other.no && self.usage_location_no == other.usage_location_no
+        self.key() == other.key()
     }
 }
 
 impl Hash for CadenzaTableRow {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        (self.no, self.usage_location_no).hash(state)
+        self.key().hash(state)
     }
 }
 
 /// Differences between two [`CadenzaTable`]s.
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct CadenzaTableDiff<'b> {
     /// Timestamps of both tables, (`self`, `other`)
     pub compared: (Option<String>, Option<String>),
@@ -298,7 +325,7 @@ mod tests {
         let table = CadenzaTable::from_path(xlsx_path).unwrap();
         let rows = table.rows();
 
-        let first_row = CadenzaTableRow {
+        let first_row = CadenzaTableRow(CadenzaTableRowInner {
             no: 1101,
             rights_holder: "Körtke".to_string().into(),
             valid_until: "2009-12-31".to_string().into(),
@@ -326,27 +353,27 @@ mod tests {
             water_protection_area: None,
             utm_easting: Some(32603873),
             utm_northing: Some(5852015)
-        };
+        });
 
         assert_eq!(rows[0], first_row);
     }
 
     #[test]
     fn sort_works() {
-        let a = CadenzaTableRow {
+        let a = CadenzaTableRow(CadenzaTableRowInner {
             no: 3,
             ..Default::default()
-        };
+        });
 
-        let b = CadenzaTableRow {
+        let b = CadenzaTableRow(CadenzaTableRowInner {
             no: 2,
             ..Default::default()
-        };
+        });
 
-        let c = CadenzaTableRow {
+        let c = CadenzaTableRow(CadenzaTableRowInner {
             no: 1,
             ..Default::default()
-        };
+        });
 
         let mut table = CadenzaTable {
             path: PathBuf::new(),
