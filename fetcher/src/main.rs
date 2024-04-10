@@ -52,7 +52,9 @@ async fn main() {
 
     let to_fetch = match (args.water_right_no, args.xlsx_path) {
         (Some(no), _) => vec![no],
-        (None, Some(xlsx_path)) => collect_no_from_cadenza_table(&xlsx_path),
+        (None, Some(ref xlsx_path)) => {
+            setup_cadenza_table(xlsx_path).water_right_no_iter().collect()
+        }
         (None, None) => unreachable!("handled by clap")
     };
 
@@ -193,23 +195,14 @@ async fn fetch(water_right_no: WaterRightNo, client: &reqwest::Client) -> Result
     Ok(())
 }
 
-fn collect_no_from_cadenza_table(xlsx_path: &Path) -> Vec<WaterRightNo> {
-    let mut cadenza_table = {
-        let _pb = ProgressBarGuard::new_wait_spinner("Parsing table...");
-        CadenzaTable::from_path(xlsx_path).expect("could not parse table")
-    };
+fn setup_cadenza_table(xlsx_path: &Path) -> CadenzaTable {
+    let _pb = ProgressBarGuard::new_wait_spinner("Parsing table...");
+    let mut table = CadenzaTable::from_path(xlsx_path).expect("could not parse table");
 
-    {
-        let _pb = ProgressBarGuard::new_wait_spinner("Sorting table...");
-        cadenza_table.sort_by(sort_cadenza_table);
-    }
+    let _pb = ProgressBarGuard::new_wait_spinner("Sorting table...");
+    table.sort_by(sort_cadenza_table);
 
-    {
-        let _pb = ProgressBarGuard::new_wait_spinner("Deduplicating table...");
-        cadenza_table.dedup_by(dedup_cadenza_table);
-    }
-
-    cadenza_table.rows().iter().map(|row| row.no).collect()
+    table
 }
 
 fn sort_cadenza_table(a: &CadenzaTableRow, b: &CadenzaTableRow) -> Ordering {
@@ -238,10 +231,6 @@ fn sort_cadenza_table(a: &CadenzaTableRow, b: &CadenzaTableRow) -> Ordering {
         (true, true, false, true) => Ordering::Greater,
         _ => a.no.cmp(&b.no)
     }
-}
-
-fn dedup_cadenza_table(a: &mut CadenzaTableRow, b: &mut CadenzaTableRow) -> bool {
-    a.no == b.no
 }
 
 fn find_fetched_reports() -> anyhow::Result<Vec<WaterRightNo>> {
