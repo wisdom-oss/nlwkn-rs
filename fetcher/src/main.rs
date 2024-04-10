@@ -7,6 +7,7 @@ use std::{fs, io};
 use clap::Parser;
 use console::{Alignment, Color};
 use indicatif::ProgressBar;
+use itertools::Itertools;
 use nlwkn::cadenza::{CadenzaTable, CadenzaTableRow};
 use nlwkn::cli::{progress_message, ProgressBarGuard, PRINT_PADDING};
 use nlwkn::WaterRightNo;
@@ -48,14 +49,25 @@ struct Args {
 #[tokio::main]
 async fn main() {
     let args = Args::parse();
+
     let _proxy_handle = tokio::spawn(start_socks_proxy());
 
-    let to_fetch = match (args.water_right_no, args.xlsx_path) {
-        (Some(no), _) => vec![no],
-        (None, Some(ref xlsx_path)) => {
-            setup_cadenza_table(xlsx_path).water_right_no_iter().collect()
+    let (to_fetch, reports_dir) = match (args.water_right_no, args.xlsx_path, args.xlsx_path_diff) {
+        (Some(no), _, _) => (vec![no], PathBuf::from("_")),
+        (None, None, _) => unreachable!("handled by clap"),
+        (None, Some(ref xlsx_path), None) => {
+            let table = setup_cadenza_table(xlsx_path);
+            (table.water_right_no_iter().collect(), reports_dir_path(&table))
+        },
+        (None, Some(ref xlsx_path), Some(ref xlsx_diff_path)) => {
+            let new_table = setup_cadenza_table(xlsx_path);
+            let old_table = setup_cadenza_table(xlsx_diff_path);
+            let diff = old_table.diff(&new_table);
+            let added_no = diff.added.iter().map(|row| row.no);
+            let modified_no = diff.modified.iter().map(|(old, _new)| old.no);
+            let no_iter = added_no.chain(modified_no).sorted().dedup();
+            (no_iter.collect(), reports_dir_path(&new_table))
         }
-        (None, None) => unreachable!("handled by clap")
     };
 
     let client = reqwest::ClientBuilder::new()
@@ -74,14 +86,15 @@ async fn main() {
         }
     }
 
-    fs::create_dir_all(CONFIG.data.reports).expect("could not create necessary directories");
+    let reports_dir = reports_dir.as_ref();
+    fs::create_dir_all(reports_dir).expect("could not create necessary directories");
 
     let mut fetched_reports = match args.force {
         true => BTreeSet::new(),
         false => {
             let _pb = ProgressBarGuard::new_wait_spinner("Fetching already downloaded reports...");
             BTreeSet::from_iter(
-                find_fetched_reports()
+                find_fetched_reports(&reports_dir)
                     .expect("could not find already fetched reports")
                     .iter()
                     .copied()
@@ -112,7 +125,7 @@ async fn main() {
         progress.tick();
 
         for retry in 1..=(CONFIG.cadenza.retries as u32) {
-            let fetched = fetch(water_right_no, &client).await;
+            let fetched = fetch(water_right_no, &client, &reports_dir).await;
             match fetched {
                 Ok(_) => {
                     progress_message(&progress, "Fetched", Color::Green, water_right_no);
@@ -184,23 +197,27 @@ enum FetchError {
     Write(#[from] io::Error)
 }
 
-async fn fetch(water_right_no: WaterRightNo, client: &reqwest::Client) -> Result<(), FetchError> {
+async fn fetch(
+    water_right_no: WaterRightNo,
+    client: &reqwest::Client,
+    reports_dir: &Path
+) -> Result<(), FetchError> {
     let report_link = req::fetch_report_url(water_right_no, client).await?;
     let pdf_bytes = client.get(&report_link).send().await?.bytes().await?;
-    fs::write(
-        format!("{}/rep{}.pdf", CONFIG.data.reports, water_right_no),
-        pdf_bytes
-    )?;
-
+    let mut file_path = PathBuf::from(reports_dir);
+    file_path.push(format!("rep{}.pdf", water_right_no));
+    fs::write(file_path, pdf_bytes)?;
     Ok(())
 }
 
 fn setup_cadenza_table(xlsx_path: &Path) -> CadenzaTable {
-    let _pb = ProgressBarGuard::new_wait_spinner("Parsing table...");
+    let pb = ProgressBarGuard::new_wait_spinner("Parsing table...");
     let mut table = CadenzaTable::from_path(xlsx_path).expect("could not parse table");
+    drop(pb);
 
-    let _pb = ProgressBarGuard::new_wait_spinner("Sorting table...");
+    let pb = ProgressBarGuard::new_wait_spinner("Sorting table...");
     table.sort_by(sort_cadenza_table);
+    drop(pb);
 
     table
 }
@@ -233,10 +250,20 @@ fn sort_cadenza_table(a: &CadenzaTableRow, b: &CadenzaTableRow) -> Ordering {
     }
 }
 
-fn find_fetched_reports() -> anyhow::Result<Vec<WaterRightNo>> {
+fn reports_dir_path(table: &CadenzaTable) -> PathBuf {
+    let mut reports_dir = PathBuf::from(CONFIG.data.reports);
+    let last_part = match table.iso_date().as_ref().map(|s| s.split('T').next()).flatten() {
+        Some(s) => PathBuf::from(s),
+        None => PathBuf::from("reports")
+    };
+    reports_dir.push(last_part);
+    reports_dir
+}
+
+fn find_fetched_reports(reports_dir: &Path) -> anyhow::Result<Vec<WaterRightNo>> {
     let mut fetched_reports: Vec<WaterRightNo> = Vec::new();
 
-    let report_dir_iter = fs::read_dir(CONFIG.data.reports)?;
+    let report_dir_iter = fs::read_dir(reports_dir)?;
     for item in report_dir_iter {
         let item = item?;
         let file_name = item.file_name();
