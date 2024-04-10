@@ -5,6 +5,7 @@ use std::ops::Deref;
 use std::path::PathBuf;
 
 use calamine::{DataType, RangeDeserializerBuilder, Reader, Xlsx};
+use indexmap::IndexSet;
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::util::StringOption;
@@ -18,10 +19,10 @@ pub struct CadenzaTable {
 
 /// Inner representation of a row in a [`CadenzaTable`].
 ///
-/// This struct should be used primarily by the library itself or for complex 
-/// custom manipulations where direct access to row values is necessary. 
+/// This struct should be used primarily by the library itself or for complex
+/// custom manipulations where direct access to row values is necessary.
 /// It manages the low-level representation and operations on data within a row.
-/// For faster but less precise equality checks or hashing, use 
+/// For faster but less precise equality checks or hashing, use
 /// [`CadenzaTableRow`], which dereferences to this type for basic operations.
 ///
 /// Note: The [`CadenzaTable::diff`] method utilizes the full equality checks
@@ -113,14 +114,14 @@ pub struct CadenzaTableRowInner {
 
 /// Represents a row in a [`CadenzaTable`].
 ///
-/// This is the primary type used for interacting with rows in the table 
+/// This is the primary type used for interacting with rows in the table
 /// throughout the codebase.
-/// It wraps a [`CadenzaTableRowInner`] which holds the actual data values, 
+/// It wraps a [`CadenzaTableRowInner`] which holds the actual data values,
 /// while providing an easier and more intuitive interface for most operations.
 ///
-/// Implements [`Deref`] targeting [`CadenzaTableRowInner`] to facilitate direct 
-/// access to inner values. 
-/// It's designed to be transparent during serialization and testing, mirroring 
+/// Implements [`Deref`] targeting [`CadenzaTableRowInner`] to facilitate direct
+/// access to inner values.
+/// It's designed to be transparent during serialization and testing, mirroring
 /// the behavior and attributes of its inner type.
 #[derive(Debug, Deserialize, Serialize, Eq)]
 #[cfg_attr(test, derive(Default))]
@@ -139,8 +140,17 @@ impl CadenzaTable {
         Ok(CadenzaTable { path, rows: rows? })
     }
 
+    #[inline]
     pub fn rows(&self) -> &[CadenzaTableRow] {
         &self.rows
+    }
+
+    /// Iterator of all water right numbers.
+    ///
+    /// The items of this iterator are unique and ordered by the internal rows,
+    /// use [`sort_by`] to sort the table if necessary.
+    pub fn water_right_no_iter(&self) -> impl ExactSizeIterator<Item = WaterRightNo> {
+        self.rows().iter().map(|row| row.no).collect::<IndexSet<WaterRightNo>>().into_iter()
     }
 
     pub fn sort_by<F>(&mut self, compare: F)
