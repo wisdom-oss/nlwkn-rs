@@ -2111,6 +2111,7 @@ dependencies = [
  "console",
  "const_format",
  "futures",
+ "indexmap 2.2.5",
  "indicatif",
  "itertools 0.12.1",
  "lazy_static",
