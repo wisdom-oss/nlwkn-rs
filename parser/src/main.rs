@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, HashMap};
+use std::ffi::OsString;
 use std::fmt::{Display, Formatter};
 use std::fs;
 use std::ops::Deref;
@@ -42,9 +43,9 @@ struct Args {
     /// Path to cadenza-provided xlsx file
     xlsx_path: PathBuf,
 
-    /// Path to data directory
-    #[arg(default_value = "data")]
-    data_path: PathBuf,
+    /// Path to reports directory, 
+    /// usually something like `data/reports/YYYY-MM-dd`
+    reports_path: PathBuf,
 
     /// Parse specific water right number report
     #[arg(long = "no")]
@@ -99,20 +100,14 @@ where
 async fn main() -> ExitCode {
     let Args {
         xlsx_path,
-        data_path,
+        reports_path,
         water_right_no: arg_no
     } = Args::parse();
-
-    let report_dir = {
-        let mut path_buf = data_path.clone();
-        path_buf.push("reports");
-        path_buf
-    };
 
     PROGRESS.set_style(SPINNER_STYLE.clone());
     PROGRESS.enable_steady_tick(PROGRESS_UPDATE_INTERVAL);
 
-    let (reports, broken_reports) = match load_reports(report_dir, arg_no) {
+    let (reports, broken_reports) = match load_reports(&reports_path, arg_no) {
         Ok(reports) => reports,
         Err(e) => {
             progress_message(
@@ -211,7 +206,7 @@ async fn main() -> ExitCode {
         pdf_only_reports_path,
         reports_path
     } = match save_results(
-        &data_path,
+        &reports_path,
         &water_rights,
         &pdf_only_water_rights,
         &broken_reports,
@@ -463,7 +458,7 @@ struct ResultPaths {
 }
 #[inline]
 fn save_results(
-    data_path: &Path,
+    reports_dir: &Path,
     water_rights: &[WaterRight],
     pdf_only_water_rights: &[WaterRight],
     broken_reports: &BrokenReports,
@@ -474,12 +469,19 @@ fn save_results(
 
     // save parsed reports
 
-    let reports_json_path = {
-        let mut path: PathBuf = data_path.into();
-        path.push("reports.json");
+    // users probably have their reports in a directory
+    let parent_dir = reports_dir.parent().unwrap();
+    let dir_name = reports_dir.iter().last().unwrap();
+
+    let out_file_path = |appendix| {
+        let mut file_name = OsString::from(dir_name);
+        file_name.push(appendix);
+        let mut path: PathBuf = parent_dir.into();
+        path.push(file_name);
         path
     };
 
+    let reports_json_path = out_file_path(".reports.json");
     #[cfg(debug_assertions)]
     let reports_json = serde_json::to_string_pretty(water_rights);
     #[cfg(not(debug_assertions))]
@@ -495,12 +497,7 @@ fn save_results(
 
     // save pdf only reports
 
-    let pdf_only_reports_json_path = {
-        let mut path: PathBuf = data_path.into();
-        path.push("pdf-only-reports.json");
-        path
-    };
-
+    let pdf_only_reports_json_path = out_file_path(".pdf-only-reports.json");
     #[cfg(debug_assertions)]
     let pdf_only_reports_json = serde_json::to_string_pretty(pdf_only_water_rights);
     #[cfg(not(debug_assertions))]
@@ -527,12 +524,7 @@ fn save_results(
         Err(e) => return Err(format!("could not serialize broken reports to json, {e}"))
     };
 
-    let broken_reports_path = {
-        let mut path: PathBuf = data_path.into();
-        path.push("broken-reports.json");
-        path
-    };
-
+    let broken_reports_path = out_file_path(".broken-reports.json");
     if let Err(e) = fs::write(&broken_reports_path, broken_reports_json) {
         return Err(format!("could not write broken reports json, {e}"));
     }
@@ -544,12 +536,7 @@ fn save_results(
         Err(e) => return Err(format!("could not serialize parsing issues to json, {e}"))
     };
 
-    let parsing_issues_path = {
-        let mut path: PathBuf = data_path.into();
-        path.push("parsing-issues.json");
-        path
-    };
-
+    let parsing_issues_path = out_file_path(".parsing-issues.json");
     if let Err(e) = fs::write(&parsing_issues_path, parsing_issues_json) {
         return Err(format!("could not write parsing issues json, {e}"));
     }
@@ -559,12 +546,7 @@ fn save_results(
         Err(e) => return Err(format!("could not serialize warnings to json, {e}"))
     };
 
-    let warnings_path = {
-        let mut path: PathBuf = data_path.into();
-        path.push("warnings.json");
-        path
-    };
-
+    let warnings_path = out_file_path(".warnings.json");
     if let Err(e) = fs::write(warnings_path, warnings_json) {
         return Err(format!("could not write warnings json, {e}"));
     }
