@@ -3,14 +3,20 @@
 //! 2. use [`Transaction::copy_in`] for [batch execution via STDIN](https://www.postgresql.org/docs/current/sql-copy.html)
 //! 3. use [`CopyInWriter`] to write rows
 
-use std::io::Write;
+use std::collections::HashMap;
+use std::io::Write as _;
+use std::fmt::Write as _;
 
+use anyhow::Context;
+use itertools::Itertools;
+use nlwkn::cadenza::{CadenzaTable, CadenzaTableDiff};
 use nlwkn::cli::{PROGRESS_STYLE, SPINNER_STYLE};
 use nlwkn::helper_types::Quantity;
 use nlwkn::{LegalDepartmentAbbreviation, UsageLocation, WaterRight, WaterRightNo};
+use postgres::types::ToSql;
 use postgres::{Client as PostgresClient, Transaction};
 
-use crate::postgres_copy::{IterPostgresCopy, PostgresCopy, PostgresCopyContext};
+use crate::postgres_copy::{IterPostgresCopy, Null, PostgresCopy, PostgresCopyContext};
 use crate::PROGRESS;
 
 pub struct InjectionLimit<'il> {
@@ -25,9 +31,56 @@ pub struct UtmPoint {
 
 pub struct IsoDate<'s>(pub &'s str);
 
-pub fn water_rights_to_pg(
+pub enum Diff<'d> {
+    None,
+    AllNew,
+    Update(CadenzaTableDiff<'d>)
+}
+
+struct WaterRightStatus {
+    no: WaterRightNo,
+    id: usize,
+    deleted: Option<String>
+}
+
+impl WaterRightStatus {
+    fn from_diff(
+        diff: CadenzaTableDiff,
+        db_ids: &HashMap<WaterRightNo, usize>
+    ) -> anyhow::Result<Vec<WaterRightStatus>> {
+        let CadenzaTableDiff {compared, added, removed, modified} = diff;
+        let mut statuses = Vec::with_capacity(added.len() + removed.len() + modified.len());
+
+        for added in added {
+            let no = added.no;
+            let id = *db_ids.get(&no).with_context(|| format!("could not find {no} in db ids"))?;
+            let deleted = None;
+            statuses.push(WaterRightStatus {no, id, deleted});
+        }
+
+        for modified in modified {
+            let no = modified.1.no;
+            let id = *db_ids.get(&no).with_context(|| format!("could not find {no} in db ids"))?;
+            let deleted = None;
+            statuses.push(WaterRightStatus {no, id, deleted});
+        }
+
+        let deleted = compared.1.context("could not get deleted timestamp from diff")?;
+        for removed in removed {
+            let no = removed.no;
+            let id = *db_ids.get(&no).with_context(|| format!("could not find {no} in db ids"))?;
+            let deleted = Some(deleted.clone());
+            statuses.push(WaterRightStatus {no, id, deleted});
+        }
+
+        Ok(statuses)
+    }
+}
+
+pub fn water_rights_to_pg<'d>(
     pg_client: &mut PostgresClient,
-    water_rights: &[WaterRight]
+    water_rights: &[WaterRight],
+    diff: Diff
 ) -> anyhow::Result<()> {
     let mut transaction = pg_client.transaction()?;
     copy_water_rights(&mut transaction, water_rights)?;
@@ -39,7 +92,19 @@ pub fn water_rights_to_pg(
                 .flat_map(|ld| ld.usage_locations.iter().map(|ul| (wr.no, ld.abbreviation, ul)))
         })
         .collect();
-    copy_usage_locations(&mut transaction, usage_locations)?;
+    let db_ids = fetch_water_right_db_ids(&mut transaction)?;
+    copy_usage_locations(&mut transaction, usage_locations, &db_ids)?;
+    match diff {
+        Diff::None => (),
+        Diff::AllNew => {
+            let statuses = db_ids.into_iter().map(|(no, id)| WaterRightStatus {no, id, deleted: None});
+            copy_current_rights(&mut transaction, statuses)?;
+        },
+        Diff::Update(diff) => {
+            let statuses = WaterRightStatus::from_diff(diff, &db_ids)?;
+            update_current_rights(&mut transaction, statuses)?;
+        }
+    }
     PROGRESS.set_style(SPINNER_STYLE.clone());
     PROGRESS.set_message("Committing transaction to database...");
     transaction.commit()?;
@@ -77,6 +142,7 @@ fn copy_water_rights(
             FROM STDIN
             WITH (
                 FORMAT text,
+                DEFAULT '@DEFAULT',
                 ENCODING 'utf8'
             )
         "
@@ -99,6 +165,7 @@ fn copy_water_rights(
     for water_right in water_rights.iter() {
         interleave_tabs! {
             writer;
+            writer.write_all(b"@DEFAULT")?; // for id
             water_right.no.copy_to(&mut writer, ctx)?;
             water_right.external_identifier.copy_to(&mut writer, ctx)?;
             water_right.file_reference.copy_to(&mut writer, ctx)?;
@@ -127,9 +194,32 @@ fn copy_water_rights(
     Ok(())
 }
 
+fn fetch_water_right_db_ids(
+    transaction: &mut Transaction
+) -> anyhow::Result<HashMap<WaterRightNo, usize>> {
+    let rows = transaction.query("SELECT id, water_right_number FROM water_rights.rights", &[])?;
+    let mut db_ids = HashMap::with_capacity(rows.len());
+    for row in rows {
+        let (id, no): (i64, i64) = (row.get("id"), row.get("water_right_number"));
+        // this conversion should be safe as we only store unsigned integers in 
+        // our db for water right numbers and ids
+        let (id, no) = (id as usize, no as WaterRightNo);
+
+        match db_ids.get(&no) {
+            None => db_ids.insert(no, id),
+            // we use serial type, therefore if id(a) < id(b) => t(a) < t(b)
+            Some(other_id) if other_id < &id => db_ids.insert(no, id),
+            Some(_) => None
+        };
+    }
+
+    Ok(db_ids)
+}
+
 fn copy_usage_locations(
     transaction: &mut Transaction,
-    usage_locations: Vec<(WaterRightNo, LegalDepartmentAbbreviation, &UsageLocation)>
+    usage_locations: Vec<(WaterRightNo, LegalDepartmentAbbreviation, &UsageLocation)>,
+    db_ids: &HashMap<WaterRightNo, usize>
 ) -> anyhow::Result<()> {
     PROGRESS.set_style(PROGRESS_STYLE.clone());
     PROGRESS.set_length(usage_locations.len() as u64);
@@ -155,12 +245,13 @@ fn copy_usage_locations(
 
     let ctx = PostgresCopyContext::default();
     for (no, lda, location) in usage_locations {
+        let water_right_no = db_ids.get(&no).with_context(|| format!("could not find {no} in db ids"))?;
         interleave_tabs! {
             writer;
             writer.write_all(b"@DEFAULT")?;
             location.no.copy_to(&mut writer, ctx)?;
             location.serial.copy_to(&mut writer, ctx)?;
-            no.copy_to(&mut writer, ctx)?;
+            water_right_no.copy_to(&mut writer, ctx)?;
             lda.copy_to(&mut writer, ctx)?;
             location.active.copy_to(&mut writer, ctx)?;
             location.real.copy_to(&mut writer, ctx)?;
@@ -210,6 +301,106 @@ fn copy_usage_locations(
     #[cfg(feature = "file-log")]
     let writer = writer.into_writer()?;
     writer.finish()?;
+    Ok(())
+}
+
+fn copy_current_rights(
+    transaction: &mut Transaction,
+    water_right_statuses: impl ExactSizeIterator<Item = WaterRightStatus>
+) -> anyhow::Result<()> {
+    PROGRESS.set_style(PROGRESS_STYLE.clone());
+    PROGRESS.set_length(water_right_statuses.len() as u64);
+    PROGRESS.set_message("Copying current rights...");
+    PROGRESS.set_prefix("🐘");
+    PROGRESS.set_position(0);
+
+    let mut writer = transaction.copy_in(
+        "
+            COPY water_rights.current_rights
+            FROM STDIN
+            WITH (
+                FORMAT text,
+                DEFAULT '@DEFAULT',
+                ENCODING 'utf8'
+            )
+        "
+    )?;
+
+    let ctx = PostgresCopyContext::default();
+    for status in water_right_statuses {
+        interleave_tabs! {
+            writer;
+            status.no.copy_to(&mut writer, ctx)?;
+            status.id.copy_to(&mut writer, ctx)?;
+            status.deleted.copy_to(&mut writer, ctx)?;
+        }
+        writeln!(&mut writer)?;
+        PROGRESS.inc(1);
+    }
+
+    writer.finish()?;
+    Ok(())
+}
+
+fn update_current_rights(
+    transaction: &mut Transaction,
+    water_right_statuses: Vec<WaterRightStatus>
+) -> anyhow::Result<()> {
+    todo!("updating current rights is still broken");
+
+    PROGRESS.set_style(PROGRESS_STYLE.clone());
+    PROGRESS.set_length(water_right_statuses.len() as u64);
+    PROGRESS.set_message("Updating current rights...");
+    PROGRESS.set_prefix("🐘");
+    PROGRESS.set_position(0);
+
+    enum Element {
+        Int(i64),
+        // TODO: implement timestamptz
+        StringOpt(Option<String>)
+    }
+
+    let batch_size = 10_000;
+    for chunk in water_right_statuses.into_iter().chunks(batch_size).into_iter() {
+        let mut query = String::from("INSERT INTO water_rights.current_rights VALUES\n");
+        let mut params = Vec::with_capacity(chunk.try_len().unwrap_or_default());
+
+        let mut handle = |query: &mut String, i: usize, status: WaterRightStatus| {
+            let idx = i * 3;
+            write!(query, "(${}, ${}, ${})", idx + 1, idx + 2, idx + 3).expect("infallible on string");
+            params.push(Element::Int(status.no as i64));
+            params.push(Element::Int(status.id as i64));
+            params.push(Element::StringOpt(status.deleted));
+            PROGRESS.inc(1);
+        };
+
+        // handle first element
+        let mut chunk_iter = chunk.enumerate();
+        if let Some((i, status)) = chunk_iter.next() {
+            handle(&mut query, i, status);
+        }
+
+        // handle the rest, postgres cannot handle trailing commas in sql
+        for (i, status) in chunk_iter {
+            writeln!(&mut query, ",").expect("infallible on string");
+            handle(&mut query, i, status);
+        }
+
+        let params: Vec<_> = params.iter().map(|el| match el {
+            Element::Int(i) => i as &(dyn ToSql + Sync),
+            Element::StringOpt(s) => s as &(dyn ToSql + Sync)
+        }).collect();
+
+        writeln!(
+            &mut query, 
+            "{}\n{}", 
+            "ON CONFLICT (water_right_number) DO UPDATE",
+            "SET internal_id = EXCLUDED.internal_id, deleted = EXCLUDED.deleted"
+        ).expect("infallible on string");
+
+        transaction.execute(&query, &params)?;
+    }
+
     Ok(())
 }
 

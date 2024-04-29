@@ -2,9 +2,10 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::{env, fs};
 
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use indicatif::ProgressBar;
 use lazy_static::lazy_static;
+use nlwkn::cadenza::CadenzaTable;
 use nlwkn::cli::{PROGRESS_UPDATE_INTERVAL, SPINNER_STYLE};
 use nlwkn::WaterRight;
 use postgres::{Client as PostgresClient, NoTls};
@@ -31,7 +32,19 @@ struct Args {
     pub reports_json: PathBuf,
 
     #[clap(flatten)]
-    pub pg_args: PostgresArgs
+    pub pg_args: PostgresArgs,
+
+    /// How to handle diffs
+    #[arg(long, value_enum, default_value = "none")]
+    pub diff: DiffArgs,
+
+    /// Old table, required if diff=update
+    #[arg(long, required_if_eq("diff", "update"))]
+    pub old: Option<PathBuf>,
+
+    /// New table, required if diff=update
+    #[arg(long, required_if_eq("diff", "update"))]
+    pub new: Option<PathBuf>
 }
 
 #[derive(Debug, Parser)]
@@ -53,10 +66,20 @@ struct PostgresArgs {
     pub port: Option<u16>
 }
 
+#[derive(Debug, Clone, ValueEnum)]
+enum DiffArgs {
+    None,
+    AllNew,
+    Update
+}
+
 fn main() -> anyhow::Result<()> {
     let Args {
         reports_json,
-        pg_args
+        pg_args,
+        diff,
+        old,
+        new
     } = Args::parse();
 
     PROGRESS.enable_steady_tick(PROGRESS_UPDATE_INTERVAL);
@@ -71,7 +94,27 @@ fn main() -> anyhow::Result<()> {
     let water_rights = fs::read_to_string(reports_json)?;
     PROGRESS.set_message("Parsing reports...");
     let water_rights: Vec<WaterRight> = serde_json::from_str(&water_rights)?;
-    export::water_rights_to_pg(&mut pg_client, &water_rights)?;
+
+    let diff = match (diff, old, new) {
+        (DiffArgs::None, _, _) => export::Diff::None,
+        (DiffArgs::AllNew, _, _) => export::Diff::AllNew,
+        (DiffArgs::Update, None, Some(_)) |
+        (DiffArgs::Update, Some(_), None) |
+        (DiffArgs::Update, None, None) => unreachable!("handled by clap"),
+        (DiffArgs::Update, Some(old), Some(new)) => {
+            PROGRESS.set_message("Loading old cadenza table...");
+            let old_table = Box::leak(Box::new(CadenzaTable::from_path(old)?));
+            PROGRESS.set_message("Loading new cadenza table...");
+            let new_table = Box::leak(Box::new(CadenzaTable::from_path(new)?));
+            PROGRESS.set_message("Calculating diff...");
+            // we leak the tables so that the diff can alwasy read from them
+            // they live until the application ends
+            let diff = old_table.diff(new_table);
+            export::Diff::Update(diff)
+        }
+    };
+
+    export::water_rights_to_pg(&mut pg_client, &water_rights, diff)?;
 
     PROGRESS.finish_and_clear();
     println!(

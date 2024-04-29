@@ -30,7 +30,10 @@ static_toml::static_toml! {
 #[command(version, about)]
 struct Args {
     /// Path to cadenza-provided xlsx file
-    #[clap(required_unless_present = "water_right_no")]
+    #[clap(
+        required_unless_present = "water_right_no",
+        required_unless_present = "table"
+    )]
     xlsx_path: Option<PathBuf>,
 
     /// Path to another xlxs file to only pull updates
@@ -43,22 +46,38 @@ struct Args {
 
     /// Ignore already downloaded files
     #[clap(long)]
-    force: bool
+    force: bool,
+
+    /// Fetch a cadenza table
+    #[clap(long)]
+    table: bool
 }
 
 #[tokio::main]
 async fn main() {
     let args = Args::parse();
 
+    // both parts need the proxy anyway, client will be constructed later to
+    // give the proxy time to boot
     let _proxy_handle = tokio::spawn(start_socks_proxy());
 
+    match args.table {
+        false => fetch_water_rights(args).await,
+        true => fetch_cadenza_table().await
+    };
+}
+
+async fn fetch_water_rights(args: Args) {
     let (to_fetch, reports_dir) = match (args.water_right_no, args.xlsx_path, args.xlsx_path_diff) {
         (Some(no), _, _) => (vec![no], PathBuf::from("_")),
         (None, None, _) => unreachable!("handled by clap"),
         (None, Some(ref xlsx_path), None) => {
             let table = setup_cadenza_table(xlsx_path);
-            (table.water_right_no_iter().collect(), reports_dir_path(&table))
-        },
+            (
+                table.water_right_no_iter().collect(),
+                reports_dir_path(&table)
+            )
+        }
         (None, Some(ref xlsx_path), Some(ref xlsx_diff_path)) => {
             let new_table = setup_cadenza_table(xlsx_path);
             let old_table = setup_cadenza_table(xlsx_diff_path);
@@ -70,21 +89,8 @@ async fn main() {
         }
     };
 
-    let client = reqwest::ClientBuilder::new()
-        .proxy(
-            reqwest::Proxy::http(format!("socks5://localhost:{}", *tor::SOCKS_PORT).as_str())
-                .expect("proxy schema invalid")
-        )
-        .redirect(Policy::none())
-        .build()
-        .expect("cannot build GET client");
-
-    {
-        let _pb = ProgressBarGuard::new_wait_spinner("Waiting for TOR proxy...");
-        while client.get(CONFIG.cadenza.url).send().await.is_err() {
-            tokio::time::sleep(Duration::from_secs(2)).await;
-        }
-    }
+    // construct client later to wait less on proxy, i.e. do other work before
+    let client = prepare_client().await;
 
     let reports_dir = reports_dir.as_ref();
     fs::create_dir_all(reports_dir).expect("could not create necessary directories");
@@ -125,7 +131,7 @@ async fn main() {
         progress.tick();
 
         for retry in 1..=(CONFIG.cadenza.retries as u32) {
-            let fetched = fetch(water_right_no, &client, &reports_dir).await;
+            let fetched = fetch_no(water_right_no, &client, &reports_dir).await;
             match fetched {
                 Ok(_) => {
                     progress_message(&progress, "Fetched", Color::Green, water_right_no);
@@ -185,6 +191,32 @@ async fn main() {
     }
 }
 
+async fn fetch_cadenza_table() {
+    let client = prepare_client().await;
+    let (filename, bytes) = req::fetch_cadenza_table(&client).await.unwrap();
+    dbg!(filename);
+    // TODO: write the file, lol
+    todo!()
+}
+
+async fn prepare_client() -> reqwest::Client {
+    let client = reqwest::ClientBuilder::new()
+        .proxy(
+            reqwest::Proxy::http(format!("socks5://localhost:{}", *tor::SOCKS_PORT).as_str())
+                .expect("proxy schema invalid")
+        )
+        .redirect(Policy::none())
+        .build()
+        .expect("cannot build GET client");
+
+    let _pb = ProgressBarGuard::new_wait_spinner("Waiting for TOR proxy...");
+    while client.get(CONFIG.cadenza.url).send().await.is_err() {
+        tokio::time::sleep(Duration::from_secs(2)).await;
+    }
+
+    client
+}
+
 #[derive(Debug, Error)]
 enum FetchError {
     #[error(transparent)]
@@ -197,7 +229,7 @@ enum FetchError {
     Write(#[from] io::Error)
 }
 
-async fn fetch(
+async fn fetch_no(
     water_right_no: WaterRightNo,
     client: &reqwest::Client,
     reports_dir: &Path

@@ -43,7 +43,7 @@ struct Args {
     /// Path to cadenza-provided xlsx file
     xlsx_path: PathBuf,
 
-    /// Path to reports directory, 
+    /// Path to reports directory,
     /// usually something like `data/reports/YYYY-MM-dd`
     reports_path: PathBuf,
 

@@ -4,6 +4,7 @@ url = "http://www.wasserdaten.niedersachsen.de/cadenza/"
 retries = 10
 
 [data]
+tables = "data/tables"
 reports = "data/reports"
 
 [postgres]
