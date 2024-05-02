@@ -5,6 +5,9 @@ use std::ops::Deref;
 use std::path::PathBuf;
 
 use calamine::{DataType, RangeDeserializerBuilder, Reader, Xlsx};
+use chrono::{DateTime, NaiveDateTime};
+use chrono_tz::Europe::Berlin;
+use chrono_tz::Tz;
 use indexmap::IndexSet;
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -236,28 +239,67 @@ impl CadenzaTable {
         let keys: HashSet<(u64, u64)> =
             HashSet::from_iter(self_map.keys().cloned().chain(other_map.keys().cloned()));
 
-        let mut diff = CadenzaTableDiff {
-            compared: (self.iso_date(), other.iso_date()),
-            added: vec![],
-            removed: vec![],
-            modified: vec![]
-        };
+        let format = "%Y-%m-%dT%H:%M:%S%.f";
+        let self_dt = self.iso_date().map(|d| {
+            NaiveDateTime::parse_from_str(&d, format)
+                .expect("self diff timestamp should be valid format")
+                .and_local_timezone(Berlin)
+                .single()
+                .expect("could not find singular date representation for old diff date")
+        });
+        let other_dt = other.iso_date().map(|d| {
+            NaiveDateTime::parse_from_str(&d, format)
+                .expect("other diff timestamp should be valid format")
+                .and_local_timezone(Berlin)
+                .single()
+                .expect("could not find singular date representation for new diff date")
+        });
 
+        let mut added_rows = vec![];
+        let mut removed_rows = vec![];
+        let mut modified_rows = vec![];
         for ref key in keys {
             match (self_map.get(key), other_map.get(key)) {
                 (None, None) => unreachable!("key must be from at least one map"),
-                (Some(self_row), None) => diff.removed.push(self_row),
-                (None, Some(other_row)) => diff.added.push(other_row),
-                (Some(self_row), Some(other_row)) => {
+                (Some(&self_row), None) => removed_rows.push(self_row),
+                (None, Some(&other_row)) => added_rows.push(other_row),
+                (Some(&self_row), Some(&other_row)) => {
                     // use inner representation to ensure a full check
                     if self_row.0 != other_row.0 {
-                        diff.modified.push((self_row, other_row))
+                        modified_rows.push((self_row, other_row))
                     }
                 }
             }
         }
 
-        diff
+        let touched_rights: HashSet<WaterRightNo> = added_rows
+            .iter()
+            .map(|r| r.no)
+            .chain(removed_rows.iter().map(|r| r.no))
+            .chain(modified_rows.iter().map(|r| r.0.no))
+            .collect();
+
+        let self_rights: HashSet<WaterRightNo> = self_map.keys().map(|(no, _)| *no).collect();
+        let other_rights: HashSet<WaterRightNo> = other_map.keys().map(|(no, _)| *no).collect();
+
+        let removed_rights: HashSet<WaterRightNo> =
+            self_rights.difference(&other_rights).copied().collect();
+        let added_rights: HashSet<WaterRightNo> =
+            other_rights.difference(&self_rights).copied().collect();
+        let modified_rights: HashSet<WaterRightNo> =
+            touched_rights.difference(&removed_rights).copied().collect();
+        let modified_rights: HashSet<WaterRightNo> =
+            modified_rights.difference(&added_rights).copied().collect();
+            
+        CadenzaTableDiff {
+            compared: (self_dt, other_dt),
+            added_rights,
+            removed_rights,
+            modified_rights,
+            added_rows,
+            removed_rows,
+            modified_rows
+        }
     }
 }
 
@@ -292,10 +334,15 @@ impl Hash for CadenzaTableRow {
 #[derive(Debug, Serialize)]
 pub struct CadenzaTableDiff<'b> {
     /// Timestamps of both tables, (`self`, `other`)
-    pub compared: (Option<String>, Option<String>),
-    pub added: Vec<&'b CadenzaTableRow>,
-    pub removed: Vec<&'b CadenzaTableRow>,
-    pub modified: Vec<(&'b CadenzaTableRow, &'b CadenzaTableRow)>
+    pub compared: (Option<DateTime<Tz>>, Option<DateTime<Tz>>),
+
+    pub added_rights: HashSet<WaterRightNo>,
+    pub removed_rights: HashSet<WaterRightNo>,
+    pub modified_rights: HashSet<WaterRightNo>,
+
+    pub added_rows: Vec<&'b CadenzaTableRow>,
+    pub removed_rows: Vec<&'b CadenzaTableRow>,
+    pub modified_rows: Vec<(&'b CadenzaTableRow, &'b CadenzaTableRow)>
 }
 
 fn deserialize_date<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
