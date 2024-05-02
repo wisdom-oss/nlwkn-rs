@@ -3,11 +3,13 @@
 //! 2. use [`Transaction::copy_in`] for [batch execution via STDIN](https://www.postgresql.org/docs/current/sql-copy.html)
 //! 3. use [`CopyInWriter`] to write rows
 
-use std::collections::HashMap;
-use std::io::Write as _;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Write as _;
+use std::io::Write as _;
 
 use anyhow::Context;
+use chrono::{DateTime, Utc};
+use chrono_tz::Tz;
 use itertools::Itertools;
 use nlwkn::cadenza::{CadenzaTable, CadenzaTableDiff};
 use nlwkn::cli::{PROGRESS_STYLE, SPINNER_STYLE};
@@ -37,40 +39,43 @@ pub enum Diff<'d> {
     Update(CadenzaTableDiff<'d>)
 }
 
+#[derive(Debug, PartialEq, Eq, Hash)]
 struct WaterRightStatus {
     no: WaterRightNo,
     id: usize,
-    deleted: Option<String>
+    deleted: Option<DateTime<Tz>>
 }
 
 impl WaterRightStatus {
     fn from_diff(
         diff: CadenzaTableDiff,
         db_ids: &HashMap<WaterRightNo, usize>
-    ) -> anyhow::Result<Vec<WaterRightStatus>> {
-        let CadenzaTableDiff {compared, added, removed, modified} = diff;
-        let mut statuses = Vec::with_capacity(added.len() + removed.len() + modified.len());
+    ) -> anyhow::Result<HashSet<WaterRightStatus>> {
+        let CadenzaTableDiff {
+            compared,
+            added_rights: added,
+            removed_rights: removed,
+            modified_rights: modified, ..
+        } = diff;
+        let mut statuses = HashSet::new();
 
-        for added in added {
-            let no = added.no;
+        for no in added {
             let id = *db_ids.get(&no).with_context(|| format!("could not find {no} in db ids"))?;
             let deleted = None;
-            statuses.push(WaterRightStatus {no, id, deleted});
+            statuses.insert(WaterRightStatus { no, id, deleted });
         }
 
-        for modified in modified {
-            let no = modified.1.no;
+        for no in modified {
             let id = *db_ids.get(&no).with_context(|| format!("could not find {no} in db ids"))?;
             let deleted = None;
-            statuses.push(WaterRightStatus {no, id, deleted});
+            statuses.insert(WaterRightStatus { no, id, deleted });
         }
 
         let deleted = compared.1.context("could not get deleted timestamp from diff")?;
-        for removed in removed {
-            let no = removed.no;
+        for no in removed {
             let id = *db_ids.get(&no).with_context(|| format!("could not find {no} in db ids"))?;
             let deleted = Some(deleted.clone());
-            statuses.push(WaterRightStatus {no, id, deleted});
+            statuses.insert(WaterRightStatus { no, id, deleted });
         }
 
         Ok(statuses)
@@ -97,9 +102,13 @@ pub fn water_rights_to_pg<'d>(
     match diff {
         Diff::None => (),
         Diff::AllNew => {
-            let statuses = db_ids.into_iter().map(|(no, id)| WaterRightStatus {no, id, deleted: None});
+            let statuses = db_ids.into_iter().map(|(no, id)| WaterRightStatus {
+                no,
+                id,
+                deleted: None
+            });
             copy_current_rights(&mut transaction, statuses)?;
-        },
+        }
         Diff::Update(diff) => {
             let statuses = WaterRightStatus::from_diff(diff, &db_ids)?;
             update_current_rights(&mut transaction, statuses)?;
@@ -197,11 +206,12 @@ fn copy_water_rights(
 fn fetch_water_right_db_ids(
     transaction: &mut Transaction
 ) -> anyhow::Result<HashMap<WaterRightNo, usize>> {
-    let rows = transaction.query("SELECT id, water_right_number FROM water_rights.rights", &[])?;
+    let rows = transaction.query("SELECT id, water_right_number FROM water_rights.rights", &[
+    ])?;
     let mut db_ids = HashMap::with_capacity(rows.len());
     for row in rows {
         let (id, no): (i64, i64) = (row.get("id"), row.get("water_right_number"));
-        // this conversion should be safe as we only store unsigned integers in 
+        // this conversion should be safe as we only store unsigned integers in
         // our db for water right numbers and ids
         let (id, no) = (id as usize, no as WaterRightNo);
 
@@ -245,7 +255,8 @@ fn copy_usage_locations(
 
     let ctx = PostgresCopyContext::default();
     for (no, lda, location) in usage_locations {
-        let water_right_no = db_ids.get(&no).with_context(|| format!("could not find {no} in db ids"))?;
+        let water_right_no =
+            db_ids.get(&no).with_context(|| format!("could not find {no} in db ids"))?;
         interleave_tabs! {
             writer;
             writer.write_all(b"@DEFAULT")?;
@@ -344,10 +355,8 @@ fn copy_current_rights(
 
 fn update_current_rights(
     transaction: &mut Transaction,
-    water_right_statuses: Vec<WaterRightStatus>
+    water_right_statuses: HashSet<WaterRightStatus>
 ) -> anyhow::Result<()> {
-    todo!("updating current rights is still broken");
-
     PROGRESS.set_style(PROGRESS_STYLE.clone());
     PROGRESS.set_length(water_right_statuses.len() as u64);
     PROGRESS.set_message("Updating current rights...");
@@ -356,8 +365,7 @@ fn update_current_rights(
 
     enum Element {
         Int(i64),
-        // TODO: implement timestamptz
-        StringOpt(Option<String>)
+        DateTimeOpt(Option<DateTime<Utc>>)
     }
 
     let batch_size = 10_000;
@@ -367,10 +375,11 @@ fn update_current_rights(
 
         let mut handle = |query: &mut String, i: usize, status: WaterRightStatus| {
             let idx = i * 3;
-            write!(query, "(${}, ${}, ${})", idx + 1, idx + 2, idx + 3).expect("infallible on string");
+            write!(query, "(${}, ${}, ${})", idx + 1, idx + 2, idx + 3)
+                .expect("infallible on string");
             params.push(Element::Int(status.no as i64));
             params.push(Element::Int(status.id as i64));
-            params.push(Element::StringOpt(status.deleted));
+            params.push(Element::DateTimeOpt(status.deleted.map(|dt| dt.to_utc())));
             PROGRESS.inc(1);
         };
 
@@ -386,17 +395,21 @@ fn update_current_rights(
             handle(&mut query, i, status);
         }
 
-        let params: Vec<_> = params.iter().map(|el| match el {
-            Element::Int(i) => i as &(dyn ToSql + Sync),
-            Element::StringOpt(s) => s as &(dyn ToSql + Sync)
-        }).collect();
+        let params: Vec<_> = params
+            .iter()
+            .map(|el| match el {
+                Element::Int(i) => i as &(dyn ToSql + Sync),
+                Element::DateTimeOpt(s) => s as &(dyn ToSql + Sync)
+            })
+            .collect();
 
         writeln!(
-            &mut query, 
-            "{}\n{}", 
+            &mut query,
+            "{}\n{}",
             "ON CONFLICT (water_right_number) DO UPDATE",
             "SET internal_id = EXCLUDED.internal_id, deleted = EXCLUDED.deleted"
-        ).expect("infallible on string");
+        )
+        .expect("infallible on string");
 
         transaction.execute(&query, &params)?;
     }

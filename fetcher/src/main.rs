@@ -82,8 +82,8 @@ async fn fetch_water_rights(args: Args) {
             let new_table = setup_cadenza_table(xlsx_path);
             let old_table = setup_cadenza_table(xlsx_diff_path);
             let diff = old_table.diff(&new_table);
-            let added_no = diff.added.iter().map(|row| row.no);
-            let modified_no = diff.modified.iter().map(|(old, _new)| old.no);
+            let added_no = diff.added_rows.iter().map(|row| row.no);
+            let modified_no = diff.modified_rows.iter().map(|(old, _new)| old.no);
             let no_iter = added_no.chain(modified_no).sorted().dedup();
             (no_iter.collect(), reports_dir_path(&new_table))
         }

@@ -1,5 +1,6 @@
 use std::io;
 
+use chrono::{DateTime, TimeZone};
 use nlwkn::helper_types::{Duration, OrFallback, Quantity, Rate, SingleOrPair};
 use nlwkn::{DamTargets, LandRecord, LegalDepartmentAbbreviation, PHValues, RateRecord};
 
@@ -408,6 +409,15 @@ impl PostgresCopy for IsoDate<'_> {
             "unbefristet" => write!(writer, "infinity"),
             s => write!(writer, "{s}")
         }
+    }
+}
+
+impl<Tz> PostgresCopy for DateTime<Tz>
+where
+    Tz: TimeZone
+{
+    fn copy_to<W: io::Write>(&self, writer: &mut W, ctx: PostgresCopyContext) -> io::Result<()> {
+        write!(writer, "{}", self.to_rfc3339())
     }
 }
 
