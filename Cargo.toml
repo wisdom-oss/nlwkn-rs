@@ -63,12 +63,16 @@ rayon = "1.8"
 parking_lot = "0.12"
 indexmap = "2"
 
+# date handling, only for cadenza tables, not for water right values
+chrono = "0.4.38"
+chrono-tz = "0.9.0"
+
 # error handling
 anyhow = "1"
 thiserror = "1"
 
 # postgres
-postgres = "0.19"
+postgres = {version = "0.19", features = ["with-chrono-0_4"]}
 
 # http requests
 [dependencies.reqwest]
