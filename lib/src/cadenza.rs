@@ -290,7 +290,7 @@ impl CadenzaTable {
             touched_rights.difference(&removed_rights).copied().collect();
         let modified_rights: HashSet<WaterRightNo> =
             modified_rights.difference(&added_rights).copied().collect();
-            
+
         CadenzaTableDiff {
             compared: (self_dt, other_dt),
             added_rights,

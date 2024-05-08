@@ -383,6 +383,16 @@ fn parsing_task(
             // sanitize coordinates
             ul.utm_easting = ul.utm_easting.and_then(zero_is_none);
             ul.utm_northing = ul.utm_northing.and_then(zero_is_none);
+
+            // remove "32" from easting for a valid coordinate
+            ul.utm_easting = ul
+                .utm_easting
+                .map(|c| {
+                    c.to_string()
+                        .strip_prefix("32")
+                        .map(|n| n.parse().expect("was already valid u64"))
+                })
+                .flatten();
         }
 
         if !relevant_cadenza_rows.is_empty() {

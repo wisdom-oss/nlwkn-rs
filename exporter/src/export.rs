@@ -55,7 +55,8 @@ impl WaterRightStatus {
             compared,
             added_rights: added,
             removed_rights: removed,
-            modified_rights: modified, ..
+            modified_rights: modified,
+            ..
         } = diff;
         let mut statuses = HashSet::new();
 

@@ -198,7 +198,10 @@ async fn fetch_cadenza_table() {
         Ok(table_data) => table_data,
         Err(err) => {
             drop(pb);
-            println!("{}\n{err}", console::style("Could not fetch cadenza table:").red().bold());
+            println!(
+                "{}\n{err}",
+                console::style("Could not fetch cadenza table:").red().bold()
+            );
             process::exit(1);
         }
     };
@@ -209,9 +212,17 @@ async fn fetch_cadenza_table() {
     let write_res = create_dir_res.and_then(|_| fs::write(&file_path, bytes));
     drop(pb);
     match write_res {
-        Ok(()) => println!("{} {}", console::style("Successfully written cadenza table to").magenta(), console::style(file_path.display()).cyan()),
+        Ok(()) => println!(
+            "{} {}",
+            console::style("Successfully written cadenza table to").magenta(),
+            console::style(file_path.display()).cyan()
+        ),
         Err(err) => {
-            println!("{}\n{}", console::style("Could not write cadenza table to disk:").red().bold(), err);
+            println!(
+                "{}\n{}",
+                console::style("Could not write cadenza table to disk:").red().bold(),
+                err
+            );
             process::exit(1);
         }
     }
