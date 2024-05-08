@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use std::{fs, io};
+use std::{fs, io, process};
 
 use clap::Parser;
 use console::{Alignment, Color};
@@ -193,10 +193,28 @@ async fn fetch_water_rights(args: Args) {
 
 async fn fetch_cadenza_table() {
     let client = prepare_client().await;
-    let (filename, bytes) = req::fetch_cadenza_table(&client).await.unwrap();
-    dbg!(filename);
-    // TODO: write the file, lol
-    todo!()
+    let pb = ProgressBarGuard::new_wait_spinner("Fetching cadenza table...");
+    let (filename, bytes) = match req::fetch_cadenza_table(&client).await {
+        Ok(table_data) => table_data,
+        Err(err) => {
+            drop(pb);
+            println!("{}\n{err}", console::style("Could not fetch cadenza table:").red().bold());
+            process::exit(1);
+        }
+    };
+
+    let mut file_path = PathBuf::from(CONFIG.data.tables);
+    let create_dir_res = fs::create_dir_all(&file_path);
+    file_path.push(filename);
+    let write_res = create_dir_res.and_then(|_| fs::write(&file_path, bytes));
+    drop(pb);
+    match write_res {
+        Ok(()) => println!("{} {}", console::style("Successfully written cadenza table to").magenta(), console::style(file_path.display()).cyan()),
+        Err(err) => {
+            println!("{}\n{}", console::style("Could not write cadenza table to disk:").red().bold(), err);
+            process::exit(1);
+        }
+    }
 }
 
 async fn prepare_client() -> reqwest::Client {

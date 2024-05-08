@@ -138,10 +138,7 @@ pub async fn fetch_cadenza_table(
         ])
         .send()
         .await?;
-    let wait_xhtml_location = servlet_res.headers().get("Location").unwrap().to_str().unwrap();
-    let wait_xhtml_location = format!("{CADENZA_ROOT}{wait_xhtml_location}");
-    // client.get(&wait_xhtml_location).header("User-Agent",
-    // USER_AGENT).send().await?;
+    let _wait_xhtml_location = servlet_res.headers().get("Location").unwrap().to_str().unwrap();
     let wait_cweb_location = format!("{CADENZA_URL}wait.cweb;jsessionid={jsession_id}");
 
     let wait_cweb_res =
@@ -154,9 +151,8 @@ pub async fn fetch_cadenza_table(
     let table_view_location = finished_res.headers().get("Location").unwrap().to_str().unwrap();
     let table_view_location = format!("{CADENZA_ROOT}{table_view_location}");
 
-    let table_view_res =
+    let _table_view_res =
         client.get(table_view_location).header("User-Agent", USER_AGENT).send().await?;
-    dbg!((&table_view_res, table_view_res.headers()));
 
     let table_url = format!(
         "{CADENZA_URL}actions/tableResult/displayExcelTableResult.xhtml;jsessionid={jsession_id}"
