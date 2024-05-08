@@ -76,7 +76,7 @@ postgres = {version = "0.19", features = ["with-chrono-0_4"]}
 
 # http requests
 [dependencies.reqwest]
-version = "0.11"
+version = "0.12"
 default-features = false
 features = ["rustls-tls", "socks"]
 
@@ -93,7 +93,7 @@ features = [
 ]
 
 [dependencies.arti-client]
-version = "0.14"
+version = "0.18"
 default-features = false
 features = [
     "tokio",
@@ -105,7 +105,7 @@ features = [
 ]
 
 [dependencies.tor-rtcompat]
-version = "0.10"
+version = "0.18"
 default-features = false
 features = [
     "tokio",
@@ -113,8 +113,8 @@ features = [
 ]
 
 [dependencies.tor-config]
-version = "0.11"
+version = "0.18"
 
 [build-dependencies]
-reqwest = { version = "0.11", features = ["blocking"] }
+reqwest = { version = "0.12", features = ["blocking"] }
 static-toml = "1"
