@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use lazy_static::lazy_static;
 use nlwkn::WaterRightNo;
 use regex::Regex;
@@ -8,6 +10,15 @@ static CADENZA_ROOT: &str = crate::CONFIG.cadenza.root;
 static CADENZA_URL: &str = crate::CONFIG.cadenza.url;
 const USER_AGENT: &str =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0";
+
+#[derive(Debug)]
+pub struct JSessionId(pub String);
+
+impl Display for JSessionId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
 
 lazy_static! {
     static ref REPORT_URL_RE: Regex =
@@ -52,10 +63,15 @@ pub enum FetchReportUrlError {
 
 pub async fn fetch_report_url(
     water_right_no: WaterRightNo,
-    client: &reqwest::Client
-) -> Result<String, FetchReportUrlError> {
+    client: &reqwest::Client,
+    j_session_id: Option<&JSessionId>
+) -> Result<(String, JSessionId), FetchReportUrlError> {
+    let j_session_id_fmt = match j_session_id {
+        None => String::new(),
+        Some(j_session_id) => format!(";jsessionid={j_session_id}")
+    };
     let command_url = format!(
-        "{CADENZA_URL}commands.xhtml?ShowLegacy.RepositoryItem.Id=FIS-W.WBE.wbe/\
+        "{CADENZA_URL}commands.xhtml{j_session_id_fmt}?ShowLegacy.RepositoryItem.Id=FIS-W.WBE.wbe/\
          wbe_net_wasserrecht.cwf&ShowLegacy.RepositoryItem.Value='{water_right_no}'&ShowLegacy.\
          RepositoryItem.Attribute=wbe_net_wasserrecht.wasserrecht_nr"
     );
@@ -106,7 +122,7 @@ pub async fn fetch_report_url(
         "{CADENZA_URL}/pages/download/get;jsessionid={j_session_id}?file=rep{report_id}.pdf&\
          mimetype=application/pdf"
     );
-    Ok(report_url)
+    Ok((report_url, JSessionId(j_session_id.to_string())))
 }
 
 fn check_max_client_count(location_url: &str) -> Result<(), FetchReportUrlError> {

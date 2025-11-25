@@ -13,7 +13,7 @@ use nlwkn::WaterRightNo;
 use reqwest::redirect::Policy;
 use thiserror::Error;
 
-use crate::req::FetchReportUrlError;
+use crate::req::{FetchReportUrlError, JSessionId};
 use crate::tor::start_socks_proxy;
 
 // mod browse;
@@ -61,6 +61,8 @@ async fn main() {
         .build()
         .expect("cannot build GET client");
 
+    let mut j_session_id = None;
+
     {
         let _pb = ProgressBarGuard::new_wait_spinner("Waiting for TOR proxy...");
         while client.get(CONFIG.cadenza.url).send().await.is_err() {
@@ -106,12 +108,13 @@ async fn main() {
         progress.tick();
 
         for retry in 1..=(CONFIG.cadenza.retries as u32) {
-            let fetched = fetch(water_right_no, &client).await;
+            let fetched = fetch(water_right_no, &client, j_session_id.as_ref()).await;
             match fetched {
-                Ok(_) => {
+                Ok(new_j_session_id) => {
                     progress_message(&progress, "Fetched", Color::Green, water_right_no);
                     progress.inc(1);
                     fetched_reports.insert(water_right_no);
+                    j_session_id = Some(new_j_session_id);
                     continue 'wr_loop;
                 }
 
@@ -133,6 +136,9 @@ async fn main() {
                         Color::Red,
                         format!("failed to fetch, {err}")
                     );
+
+                    // start with a new session
+                    j_session_id = None;
 
                     // use quadratic backoff for wait until retry
                     let wait = 2u64.pow(retry);
@@ -178,15 +184,20 @@ enum FetchError {
     Write(#[from] io::Error)
 }
 
-async fn fetch(water_right_no: WaterRightNo, client: &reqwest::Client) -> Result<(), FetchError> {
-    let report_link = req::fetch_report_url(water_right_no, client).await?;
+async fn fetch(
+    water_right_no: WaterRightNo,
+    client: &reqwest::Client,
+    j_session_id: Option<&JSessionId>
+) -> Result<JSessionId, FetchError> {
+    let (report_link, j_session_id) =
+        req::fetch_report_url(water_right_no, client, j_session_id).await?;
     let pdf_bytes = client.get(&report_link).send().await?.bytes().await?;
     fs::write(
         format!("{}/rep{}.pdf", CONFIG.data.reports, water_right_no),
         pdf_bytes
     )?;
 
-    Ok(())
+    Ok(j_session_id)
 }
 
 fn collect_no_from_cadenza_table(xlsx_path: &Path) -> Vec<WaterRightNo> {
