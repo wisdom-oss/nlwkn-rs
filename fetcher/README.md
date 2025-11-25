@@ -71,6 +71,9 @@ sequenceDiagram
   Extract the session token from the Location header by identifying the value 
   after `;jsessionid=`.
 
+- If the last request was successful, the new request will reuse the old session 
+  token.
+
 #### 2. Report Generation Wait:
 - Construct a new URL: `{CADENZA_URL}wait.cweb;jsessionid={j_session_id}`
 
