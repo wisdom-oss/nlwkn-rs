@@ -44,7 +44,10 @@ pub enum FetchReportUrlError {
     NoResults,
 
     #[error("download url does not contain report file id")]
-    NoReportFileId
+    NoReportFileId,
+
+    #[error("max client count reached")]
+    MaxClientCountReached { url: String }
 }
 
 pub async fn fetch_report_url(
@@ -65,6 +68,7 @@ pub async fn fetch_report_url(
     let wait_xhtml_url =
         command_res.headers().get("Location").ok_or(FetchReportUrlError::CommandNoLocation)?;
     let wait_xhtml_url = wait_xhtml_url.to_str()?;
+    check_max_client_count(wait_xhtml_url)?;
     let j_session_id = wait_xhtml_url
         .split(";jsessionid=")
         .nth(1)
@@ -79,7 +83,9 @@ pub async fn fetch_report_url(
 
     let finished_url =
         wait_cweb_res.headers().get("Location").ok_or(FetchReportUrlError::WaitCwebNoLocation)?;
-    let finished_url = format!("{CADENZA_ROOT}{}", finished_url.to_str()?);
+    let finished_url = finished_url.to_str()?;
+    check_max_client_count(finished_url)?;
+    let finished_url = format!("{CADENZA_ROOT}{finished_url}");
     let finished_res = client.get(&finished_url).header("User-Agent", USER_AGENT).send().await?;
     let download_url = match finished_res.headers().get("Location") {
         Some(location) => location.to_str()?,
@@ -101,4 +107,13 @@ pub async fn fetch_report_url(
          mimetype=application/pdf"
     );
     Ok(report_url)
+}
+
+fn check_max_client_count(location_url: &str) -> Result<(), FetchReportUrlError> {
+    match location_url.contains("maxClientCountReached") {
+        true => Err(FetchReportUrlError::MaxClientCountReached {
+            url: location_url.to_string()
+        }),
+        false => Ok(())
+    }
 }
