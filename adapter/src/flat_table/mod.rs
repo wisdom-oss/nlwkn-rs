@@ -23,6 +23,7 @@ pub type FlatTableRow<M> = BTreeMap<FlatTableKey<M>, FlatTableValue>;
 
 #[derive(Debug)]
 pub enum Progress {
+    #[expect(dead_code)]
     Flattened(WaterRightNo),
     Rows(usize),
     KeyUpdate
