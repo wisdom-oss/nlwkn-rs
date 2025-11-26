@@ -58,6 +58,7 @@ async fn main() {
                 .expect("proxy schema invalid")
         )
         .redirect(Policy::none())
+        .timeout(Duration::from_mins(5))
         .build()
         .expect("cannot build GET client");
 
