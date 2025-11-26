@@ -45,6 +45,7 @@ fn main() {
         }
 
         let res = client.get(resource.url).send().unwrap();
+        assert!(res.status().is_success());
         let text = res.text().unwrap();
 
         fs::write(&out_path, text).unwrap();
