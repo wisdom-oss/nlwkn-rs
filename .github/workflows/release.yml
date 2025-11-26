@@ -94,7 +94,7 @@ jobs:
           | "version=" + $in
           | save $env.GITHUB_OUTPUT -ra
 
-      - name: Draft Release
+      - name: Create Release
         run: gh release create "$TAG" dist/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
