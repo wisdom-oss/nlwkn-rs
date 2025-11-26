@@ -28,7 +28,7 @@ path = "exporter/src/main.rs"
 file-log = []
 
 [[package.metadata.resources]]
-url = "https://raw.githubusercontent.com/wisdom-oss/service-water-rights/feature/updated-dataschema/resources/init.sql"
+url = "https://raw.githubusercontent.com/wisdom-oss/service-water-rights/refs/heads/main/resources/migrations/20250106194324_initialize.sql"
 path = "init.sql"
 
 [dependencies]
