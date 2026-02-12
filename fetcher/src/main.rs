@@ -42,7 +42,7 @@ struct Args {
 
     /// Disable TOR proxying
     #[clap(long)]
-    no_tor: bool,
+    no_tor: bool
 }
 
 #[tokio::main]
@@ -53,7 +53,7 @@ async fn main() {
     let to_fetch = match (args.water_right_no, args.xlsx_path) {
         (Some(no), _) => vec![no],
         (None, Some(xlsx_path)) => collect_no_from_cadenza_table(&xlsx_path),
-        (None, None) => unreachable!("handled by clap"),
+        (None, None) => unreachable!("handled by clap")
     };
 
     let mut client =
@@ -61,7 +61,7 @@ async fn main() {
     if !args.no_tor {
         client = client.proxy(
             reqwest::Proxy::http(format!("socks5://localhost:{}", *tor::SOCKS_PORT).as_str())
-                .expect("proxy schema invalid"),
+                .expect("proxy schema invalid")
         )
     }
     let client = client.build().expect("cannot build GET client");
@@ -85,7 +85,7 @@ async fn main() {
                 find_fetched_reports()
                     .expect("could not find already fetched reports")
                     .iter()
-                    .copied(),
+                    .copied()
             )
         }
     };
@@ -103,7 +103,7 @@ async fn main() {
                 &progress,
                 "Skipped",
                 Color::Green,
-                format!("{water_right_no}, already fetched"),
+                format!("{water_right_no}, already fetched")
             );
             progress.inc(1);
             continue;
@@ -128,7 +128,7 @@ async fn main() {
                         &progress,
                         "Warning",
                         Color::Yellow,
-                        format!("no results found for {water_right_no}"),
+                        format!("no results found for {water_right_no}")
                     );
                     progress.inc(1);
                     continue 'wr_loop;
@@ -139,7 +139,7 @@ async fn main() {
                         &progress,
                         "Error",
                         Color::Red,
-                        format!("failed to fetch, {err}"),
+                        format!("failed to fetch, {err}")
                     );
 
                     // start with a new session
@@ -161,7 +161,7 @@ async fn main() {
             &progress,
             "Warning",
             Color::Yellow,
-            format!("exceeded amount of retries, will skip {water_right_no}"),
+            format!("exceeded amount of retries, will skip {water_right_no}")
         );
         progress.inc(1);
     }
@@ -173,7 +173,7 @@ async fn main() {
             console::style("Fetching done").magenta(),
             unfetched_reports.iter().map(|no| no.to_string()).collect::<Vec<String>>().join(", ")
         ),
-        true => println!("{}", console::style("Fetched all reports").magenta()),
+        true => println!("{}", console::style("Fetched all reports").magenta())
     }
 }
 
@@ -186,20 +186,20 @@ enum FetchError {
     Reqwest(#[from] reqwest::Error),
 
     #[error(transparent)]
-    Write(#[from] io::Error),
+    Write(#[from] io::Error)
 }
 
 async fn fetch(
     water_right_no: WaterRightNo,
     client: &reqwest::Client,
-    j_session_id: Option<&JSessionId>,
+    j_session_id: Option<&JSessionId>
 ) -> Result<JSessionId, FetchError> {
     let (report_link, j_session_id) =
         req::fetch_report_url(water_right_no, client, j_session_id).await?;
     let pdf_bytes = client.get(&report_link).send().await?.bytes().await?;
     fs::write(
         format!("{}/rep{}.pdf", CONFIG.data.reports, water_right_no),
-        pdf_bytes,
+        pdf_bytes
     )?;
 
     Ok(j_session_id)
@@ -235,11 +235,11 @@ fn sort_cadenza_table(a: &CadenzaTableRow, b: &CadenzaTableRow) -> Ordering {
     let prioritized_counties = ["Aurich", "Wittmund", "Friesland", "Leer"];
     let a_in_county = match a.county.as_deref() {
         Some(county) => prioritized_counties.contains(&county),
-        None => false,
+        None => false
     };
     let b_in_county = match b.county.as_deref() {
         Some(county) => prioritized_counties.contains(&county),
-        None => false,
+        None => false
     };
 
     // prioritize `E` legal departments, otherwise sort by water right no
@@ -248,7 +248,7 @@ fn sort_cadenza_table(a: &CadenzaTableRow, b: &CadenzaTableRow) -> Ordering {
         (false, true, _, _) => Ordering::Greater,
         (true, true, true, false) => Ordering::Less,
         (true, true, false, true) => Ordering::Greater,
-        _ => a.no.cmp(&b.no),
+        _ => a.no.cmp(&b.no)
     }
 }
 
