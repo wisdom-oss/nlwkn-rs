@@ -1,5 +1,6 @@
 # idea
 /.idea
+/.vscode
 
 # python virtual env
 /.venv
@@ -8,7 +9,7 @@
 /target
 
 # fetched data
-/data
+/data*
 
 # tmp files
 /test/~$cadenza.xlsx
