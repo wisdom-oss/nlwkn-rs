@@ -3,6 +3,7 @@
 //! 2. use [`Transaction::copy_in`] for [batch execution via STDIN](https://www.postgresql.org/docs/current/sql-copy.html)
 //! 3. use [`CopyInWriter`] to write rows
 
+use std::collections::HashMap;
 use std::io::Write;
 
 use nlwkn::cli::{PROGRESS_STYLE, SPINNER_STYLE};
@@ -25,18 +26,30 @@ pub struct UtmPoint {
 
 pub struct IsoDate<'s>(pub &'s str);
 
+type InternalId = i64;
+
 pub fn water_rights_to_pg(
     pg_client: &mut PostgresClient,
     water_rights: &[WaterRight]
 ) -> anyhow::Result<()> {
     let mut transaction = pg_client.transaction()?;
-    copy_water_rights(&mut transaction, water_rights)?;
+    let reserved_ids = reserve_water_right_ids(&mut transaction, water_rights.len())?;
+    let water_right_ids = copy_water_rights(&mut transaction, &reserved_ids, water_rights)?;
     let usage_locations = water_rights
         .iter()
         .flat_map(|wr| {
-            wr.legal_departments
-                .values()
-                .flat_map(|ld| ld.usage_locations.iter().map(|ul| (wr.no, ld.abbreviation, ul)))
+            wr.legal_departments.values().flat_map(|ld| {
+                ld.usage_locations.iter().map(|ul| {
+                    (
+                        *water_right_ids
+                            .get(&wr.no)
+                            .expect(&format!("internal ID for water right no {}", wr.no)),
+                        wr.no,
+                        ld.abbreviation,
+                        ul
+                    )
+                })
+            })
         })
         .collect();
     copy_usage_locations(&mut transaction, usage_locations)?;
@@ -44,6 +57,33 @@ pub fn water_rights_to_pg(
     PROGRESS.set_message("Committing transaction to database...");
     transaction.commit()?;
     Ok(())
+}
+
+fn reserve_water_right_ids(
+    transaction: &mut Transaction,
+    n: usize
+) -> anyhow::Result<Vec<InternalId>> {
+    PROGRESS.set_style(SPINNER_STYLE.clone());
+    PROGRESS.set_message("Reserving internal water right IDs...");
+
+    let row = transaction.query_one(
+        "SELECT pg_get_serial_sequence('water_rights.rights', 'id') AS seq_name;",
+        &[]
+    )?;
+    let seq_name: String = row.try_get("seq_name")?;
+
+    let rows = transaction.query(
+        format!(
+            "
+            SELECT nextval('{seq_name}') AS id
+            FROM generate_series(1, {n}::bigint);
+        "
+        )
+        .as_str(),
+        &[]
+    )?;
+
+    rows.into_iter().map(|row| row.try_get("id").map_err(anyhow::Error::from)).collect()
 }
 
 macro_rules! interleave_tabs {
@@ -62,8 +102,11 @@ macro_rules! interleave_tabs {
 
 fn copy_water_rights(
     transaction: &mut Transaction,
+    reserved_ids: &[InternalId],
     water_rights: &[WaterRight]
-) -> anyhow::Result<()> {
+) -> anyhow::Result<HashMap<WaterRightNo, InternalId>> {
+    assert_eq!(reserved_ids.len(), water_rights.len());
+
     PROGRESS.set_style(PROGRESS_STYLE.clone());
     PROGRESS.set_length(water_rights.len() as u64);
     PROGRESS.set_message("Copying water rights...");
@@ -77,6 +120,7 @@ fn copy_water_rights(
             FROM STDIN
             WITH (
                 FORMAT text,
+                DEFAULT '@DEFAULT',
                 ENCODING 'utf8'
             )
         "
@@ -96,9 +140,10 @@ fn copy_water_rights(
     // PostgresCopyContext implements Copy,
     // so this will be a new context for each call
     let ctx = PostgresCopyContext::default();
-    for water_right in water_rights.iter() {
+    for (water_right, id) in water_rights.iter().zip(reserved_ids) {
         interleave_tabs! {
             writer;
+            id.copy_to(&mut writer, ctx)?;
             water_right.no.copy_to(&mut writer, ctx)?;
             water_right.external_identifier.copy_to(&mut writer, ctx)?;
             water_right.file_reference.copy_to(&mut writer, ctx)?;
@@ -124,12 +169,19 @@ fn copy_water_rights(
     #[cfg(feature = "file-log")]
     let writer = writer.into_writer()?;
     writer.finish()?;
-    Ok(())
+    Ok(HashMap::from_iter(
+        water_rights.iter().zip(reserved_ids).map(|(wr, id)| (wr.no, *id))
+    ))
 }
 
 fn copy_usage_locations(
     transaction: &mut Transaction,
-    usage_locations: Vec<(WaterRightNo, LegalDepartmentAbbreviation, &UsageLocation)>
+    usage_locations: Vec<(
+        InternalId,
+        WaterRightNo,
+        LegalDepartmentAbbreviation,
+        &UsageLocation
+    )>
 ) -> anyhow::Result<()> {
     PROGRESS.set_style(PROGRESS_STYLE.clone());
     PROGRESS.set_length(usage_locations.len() as u64);
@@ -154,13 +206,13 @@ fn copy_usage_locations(
         log_through::LogThrough::new(writer, "usage_locations.export").prepare_usage_locations()?;
 
     let ctx = PostgresCopyContext::default();
-    for (no, lda, location) in usage_locations {
+    for (id, _, lda, location) in usage_locations {
         interleave_tabs! {
             writer;
             writer.write_all(b"@DEFAULT")?;
             location.no.copy_to(&mut writer, ctx)?;
             location.serial.copy_to(&mut writer, ctx)?;
-            no.copy_to(&mut writer, ctx)?;
+            id.copy_to(&mut writer, ctx)?;
             lda.copy_to(&mut writer, ctx)?;
             location.active.copy_to(&mut writer, ctx)?;
             location.real.copy_to(&mut writer, ctx)?;
@@ -248,6 +300,7 @@ mod log_through {
             self.log(
                 concat!(
                     "id\t",
+                    "water_right_no\t",
                     "external_identifier\t",
                     "file_reference\t",
                     "legal_departments\t",
