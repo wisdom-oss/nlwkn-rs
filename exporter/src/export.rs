@@ -43,7 +43,7 @@ pub fn water_rights_to_pg(
                     (
                         *water_right_ids
                             .get(&wr.no)
-                            .expect(&format!("internal ID for water right no {}", wr.no)),
+                            .unwrap_or_else(|| panic!("internal ID for water right no {}", wr.no)),
                         wr.no,
                         ld.abbreviation,
                         ul

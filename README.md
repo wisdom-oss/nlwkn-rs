@@ -52,21 +52,36 @@ For a more detailed overview and instructions specific to each tool, please
 refer to the README in their respective directories.
 
 ## Installation and Usage
-### Prerequisites:
+
+### Download from Releases
+
+Precompiled binaries can be found on the 
+[releases page](https://github.com/wisdom-oss/nlwkn-rs/releases).
+They are available for Linux and Windows 64 bit.
+
+Refer to individual tool READMEs for usage instructions:
+[fetcher](./fetcher/README.md),
+[parser](./parser/README.md),
+[adapter](./adapter/README.md),
+[exporter](./exporter/README.md).
+
+### Compile it yourself
+
+#### Prerequisites:
 
 Make sure you have Rust and Cargo installed on your machine. 
 If not, you can get them from [rust-lang.org](https://rust-lang.org).
 
 <!-- TODO: add section about using as lib -->
 
-### Clone the repository:
+#### Clone the repository:
 
 ```shell
 git clone https://github.com/[your-username]/nlwkn-rs.git
 cd nlwkn-rs
 ```
 
-### Building the project:
+#### Building the project:
 
 ```shell
 cargo build --release
